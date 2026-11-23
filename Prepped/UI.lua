@@ -1,0 +1,537 @@
+-- UI: the tracker, the buff bar, the options window, /pr and the addon compartment button.
+-- Draws whatever Core.compute and the pure modules return; no scoring here.
+local ADDON, ns = ...
+local UI = {}
+ns.UI = UI
+local Core = ns.Core
+
+local FONT = "Fonts\\FRIZQT__.TTF"
+local function text(parent, size, r, g, b)
+  local fs = parent:CreateFontString(nil, "OVERLAY")
+  fs:SetFont(FONT, size or 12, "")
+  fs:SetTextColor(r or 1, g or 1, b or 1)
+  fs:SetJustifyH("LEFT")
+  return fs
+end
+
+local function backdrop(f)
+  f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+  f:SetBackdropColor(0.05, 0.05, 0.07, 0.75)
+  f:SetBackdropBorderColor(0.3, 0.3, 0.35, 0.9)
+end
+
+local function savePos(frame, key)
+  local a, _, b, x, y = frame:GetPoint()
+  ns.db[key] = { a, b, x, y }
+end
+
+local function placeAt(frame, key, default)
+  frame:ClearAllPoints()
+  local p = ns.db[key]
+  if p then frame:SetPoint(p[1], UIParent, p[2], p[3], p[4]) else frame:SetPoint(unpack(default)) end
+end
+
+-- Tracker -------------------------------------------------------------------------------------------
+local TRACKER_DEFAULT = { "RIGHT", UIParent, "RIGHT", -260, 120 }
+local WIDTH, LINE = 300, 16
+local COLORS = { blocker = { 1, 0.45, 0.45 }, more = { 0.7, 0.7, 0.7 }, consumable = { 1, 0.82, 0 }, gear = { 1, 1, 1 },
+  choose = { 0.35, 0.8, 1 } }
+
+local tracker
+local function pct(x) return math.floor(x * 100 + 0.5) .. "%" end
+
+local function headerTooltip(self)
+  local v = Core.view
+  GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+  GameTooltip:AddLine("Prepped")
+  local r = v and v.readiness
+  if r and r.pct then
+    GameTooltip:AddLine("Readiness " .. pct(r.pct) .. " for " .. (ns.Spec.NAME[v.spec] or v.spec or "?"), 1, 1, 1)
+    for _, part in ipairs({ { "gear", "Gear" }, { "enchants", "Enchants" }, { "consumables", "Consumables" } }) do
+      local share = r[part[1]]
+      GameTooltip:AddDoubleLine(part[2], share and pct(share) or "not scored", 0.8, 0.8, 0.8, 1, 1, 1)
+    end
+    if r.next then GameTooltip:AddLine("Biggest next step: " .. r.next.label, 0.4, 1, 0.4, true) end
+  end
+  local badge = v and v.state and v.state.badge
+  if badge == "SimGear live" then
+    GameTooltip:AddLine("Scores use SimGear Forever's data, read live.", 0.6, 0.6, 0.6, true)
+  elseif badge == "Estimated weights" then
+    GameTooltip:AddLine("SimGear's weights for this spec are placeholders, not sims: treat the score as rough.", 0.6, 0.6, 0.6, true)
+  elseif v and v.problem then
+    GameTooltip:AddLine("No gear data: " .. tostring(v.problem), 1, 0.4, 0.4, true)
+  end
+  GameTooltip:AddLine("Click: expand or collapse · Drag: move", 0.5, 0.5, 0.5)
+  GameTooltip:Show()
+end
+
+local function buildTracker()
+  tracker = CreateFrame("Frame", "PreppedTracker", UIParent, "BackdropTemplate")
+  backdrop(tracker)
+  tracker:SetSize(WIDTH, 28)
+  tracker:SetMovable(true)
+  tracker:SetClampedToScreen(true)
+  placeAt(tracker, "trackerPos", TRACKER_DEFAULT)
+
+  local head = CreateFrame("Button", nil, tracker)
+  head:SetPoint("TOPLEFT", 6, -4)
+  head:SetPoint("TOPRIGHT", -26, -4)
+  head:SetHeight(20)
+  head:RegisterForDrag("LeftButton")
+  head:SetScript("OnDragStart", function() if not ns.db.locked then tracker:StartMoving() end end)
+  head:SetScript("OnDragStop", function() tracker:StopMovingOrSizing(); savePos(tracker, "trackerPos") end)
+  head:SetScript("OnClick", function()
+    ns.cdb.collapsed = not ns.cdb.collapsed
+    UI.refreshTracker(Core.view)
+  end)
+  head:SetScript("OnEnter", headerTooltip)
+  head:SetScript("OnLeave", GameTooltip_Hide)
+  tracker.title = text(head, 13, 1, 0.82, 0)
+  tracker.title:SetPoint("LEFT", 0, 0)
+  tracker.title:SetPoint("RIGHT", 0, 0)
+
+  local gear = CreateFrame("Button", nil, tracker)
+  gear:SetSize(16, 16)
+  gear:SetPoint("TOPRIGHT", -6, -6)
+  gear:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+  gear:SetScript("OnClick", function() UI.toggleOptions() end)
+  gear:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT"); GameTooltip:AddLine("Prepped options"); GameTooltip:Show()
+  end)
+  gear:SetScript("OnLeave", GameTooltip_Hide)
+
+  tracker.lines, tracker.buttons = {}, {}
+end
+
+local function line(i)
+  local l = tracker.lines[i]
+  if not l then
+    l = text(tracker, 12)
+    l:SetWidth(WIDTH - 16)
+    l:SetWordWrap(false)
+    tracker.lines[i] = l
+  end
+  return l
+end
+
+local function choiceButton(i)
+  local b = tracker.buttons[i]
+  if not b then
+    b = CreateFrame("Button", nil, tracker, "UIPanelButtonTemplate")
+    b:SetHeight(18)
+    b:SetScript("OnClick", function(self) Core.setSpec(self.spec) end)
+    tracker.buttons[i] = b
+  end
+  return b
+end
+
+function UI.refreshTracker(view)
+  if not tracker then return end
+  if not ns.db.showTracker or not view then tracker:Hide(); return end
+  tracker:SetScale(ns.db.scale or 1)
+  local t = ns.Tracker.lines(view.state)
+  tracker.title:SetText(t.header)
+  for _, l in ipairs(tracker.lines) do l:Hide() end
+  for _, b in ipairs(tracker.buttons) do b:Hide() end
+  local y, bi = -26, 0
+  for i, l in ipairs(t.lines) do
+    local fs = line(i)
+    local c = COLORS[l.kind] or COLORS.gear
+    fs:SetTextColor(c[1], c[2], c[3])
+    fs:SetText(l.text)
+    fs:ClearAllPoints()
+    fs:SetPoint("TOPLEFT", 8, y)
+    fs:Show()
+    if l.buttons then
+      local x = 8 + fs:GetStringWidth() + 6
+      for _, choice in ipairs(l.buttons) do
+        bi = bi + 1
+        local b = choiceButton(bi)
+        b.spec = choice.spec
+        b:SetText(choice.label)
+        b:SetWidth(math.max(44, b:GetFontString():GetStringWidth() + 16))
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT", x, y + 2)
+        b:Show()
+        x = x + b:GetWidth() + 4
+      end
+      y = y - 4
+    end
+    y = y - LINE
+  end
+  tracker:SetHeight(-y + 6)
+  tracker:Show()
+end
+
+-- Buff bar: one secure button per missing buff, hidden in combat ---------------------------------------
+local BUFF_DEFAULT = { "CENTER", UIParent, "CENTER", 0, 200 }
+local SIZE, GAP = 40, 6
+local holder, grip
+local buffButtons = {}
+
+local function buffButton(i)
+  if buffButtons[i] then return buffButtons[i] end
+  local b = CreateFrame("Button", "PreppedBuff" .. i, holder, "SecureActionButtonTemplate")
+  b:SetSize(SIZE, SIZE)
+  b:RegisterForClicks("AnyUp", "AnyDown")
+  b:SetAttribute("type", "item")
+  b:SetAttribute("unit", "player") -- scrolls buff your target otherwise
+  b.icon = b:CreateTexture(nil, "ARTWORK")
+  b.icon:SetAllPoints()
+  b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+  b.count = text(b, 12)
+  b.count:SetPoint("BOTTOMRIGHT", -2, 2)
+  b:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:SetItemByID(self.id)
+    if self.empty then GameTooltip:AddLine("(none in your bags)", 1, 0.4, 0.4) end
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", GameTooltip_Hide)
+  buffButtons[i] = b
+  return b
+end
+
+function UI.refreshBuffs(view)
+  if not holder then return end
+  if InCombatLockdown() then return end -- redrawn on PLAYER_REGEN_ENABLED
+  local list = {}
+  if view and view.buffSlots and ns.db.buffsRaid and not UnitIsDeadOrGhost("player") then
+    local stock = {}
+    for _, s in ipairs(view.buffSlots) do if s.item then stock[s.item.id] = C_Item.GetItemCount(s.item.id) or 0 end end
+    list = ns.Buffs.missing({ instance = view.instance, slots = view.buffSlots, stock = stock, inCombat = false,
+      dungeons = ns.db.buffsDungeon })
+  end
+  for _, b in ipairs(buffButtons) do b:Hide() end
+  if #list == 0 then holder:Hide(); return end
+  for i, m in ipairs(list) do
+    local b = buffButton(i)
+    b.id, b.empty = m.item.id, m.bags == 0
+    b:SetAttribute("item", (not b.empty) and ("item:" .. m.item.id) or nil)
+    b.icon:SetTexture(C_Item.GetItemIconByID(m.item.id))
+    b.icon:SetDesaturated(b.empty)
+    b.count:SetText(b.empty and "(none)" or m.bags)
+    b:ClearAllPoints()
+    b:SetPoint("TOPLEFT", holder, "TOPLEFT", (i - 1) * (SIZE + GAP), 0)
+    b:Show()
+  end
+  holder:SetWidth(#list * (SIZE + GAP) - GAP)
+  grip.label:SetText("Prepped: buffs missing")
+  holder:Show()
+end
+
+local function buildBuffBar()
+  -- Never on screen in combat: a secure state driver works under combat lockdown.
+  local gate = CreateFrame("Frame", nil, UIParent, "SecureHandlerStateTemplate")
+  gate:SetAllPoints(UIParent)
+  RegisterStateDriver(gate, "visibility", "[combat] hide; show")
+  holder = CreateFrame("Frame", "PreppedBuffs", gate)
+  holder:SetSize(SIZE, SIZE)
+  holder:SetMovable(true)
+  holder:SetClampedToScreen(true)
+  placeAt(holder, "buffPos", BUFF_DEFAULT)
+  holder:Hide()
+  grip = CreateFrame("Frame", nil, holder)
+  grip:SetPoint("BOTTOMLEFT", holder, "TOPLEFT", 0, 2)
+  grip:SetPoint("BOTTOMRIGHT", holder, "TOPRIGHT", 0, 2)
+  grip:SetHeight(14)
+  grip.label = text(grip, 12, 1, 0.82, 0)
+  grip.label:SetPoint("BOTTOM")
+  grip:EnableMouse(true)
+  grip:RegisterForDrag("LeftButton")
+  grip:SetScript("OnDragStart", function() if not InCombatLockdown() and not ns.db.locked then holder:StartMoving() end end)
+  grip:SetScript("OnDragStop", function() holder:StopMovingOrSizing(); savePos(holder, "buffPos") end)
+end
+
+-- Options window (its own frame: a page in the game's Settings tainted SimGear's action bars) ----------------
+local options
+
+local function cycle(list, current)
+  for i, v in ipairs(list) do if v == current then return list[i % #list + 1] end end
+  return list[1]
+end
+
+local function check(parent, label, get, set, y)
+  local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+  c:SetPoint("TOPLEFT", 16, y)
+  c:SetSize(24, 24)
+  local fs = text(c, 12)
+  fs:SetPoint("LEFT", c, "RIGHT", 4, 0)
+  fs:SetText(label)
+  c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
+  c.refresh = function() c:SetChecked(get()) end
+  return c
+end
+
+local function button(parent, label, onClick, x, y, w)
+  local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+  b:SetSize(w or 120, 22)
+  b:SetPoint("TOPLEFT", x, y)
+  b:SetText(label)
+  b:SetScript("OnClick", onClick)
+  return b
+end
+
+local function heading(parent, label, y)
+  local fs = text(parent, 13, 1, 0.82, 0)
+  fs:SetPoint("TOPLEFT", 12, y)
+  fs:SetText(label)
+  return fs
+end
+
+local function buildOptions()
+  options = CreateFrame("Frame", "PreppedOptions", UIParent, "BackdropTemplate")
+  backdrop(options)
+  options:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
+  options:SetSize(420, 620)
+  options:SetPoint("CENTER")
+  options:SetFrameStrata("DIALOG")
+  options:SetMovable(true)
+  options:EnableMouse(true)
+  options:RegisterForDrag("LeftButton")
+  options:SetScript("OnDragStart", options.StartMoving)
+  options:SetScript("OnDragStop", options.StopMovingOrSizing)
+  options:SetClampedToScreen(true)
+  tinsert(UISpecialFrames, "PreppedOptions") -- Escape closes it
+  local close = CreateFrame("Button", nil, options, "UIPanelCloseButton")
+  close:SetPoint("TOPRIGHT", 2, 2)
+  local title = text(options, 15, 0.2, 0.8, 1)
+  title:SetPoint("TOPLEFT", 12, -10)
+  title:SetText("Prepped " .. (C_AddOns.GetAddOnMetadata(ADDON, "Version") or ""))
+
+  local widgets = {}
+  local function add(w) widgets[#widgets + 1] = w; return w end
+  local y = -36
+
+  heading(options, "Character", y); y = y - 22
+  local specBtn = add(button(options, "", function()
+    local token = select(2, UnitClass("player"))
+    local list = {}
+    for _, s in ipairs(ns.Spec.specsOf(token)) do list[#list + 1] = s end
+    list[#list + 1] = false -- back to detected
+    local group = Core.talentGroup()
+    local nextSpec = cycle(list, ns.cdb.groupSpec[group] or false)
+    ns.cdb.groupSpec[group] = nextSpec or nil
+    Core.settingsChanged()
+  end, 16, y, 260))
+  specBtn.refresh = function()
+    local group = Core.talentGroup()
+    local chosen = ns.cdb.groupSpec[group]
+    local spec = Core.spec()
+    specBtn:SetText("Talent group " .. group .. ": " .. (ns.Spec.NAME[spec] or spec or "?") .. (chosen and "" or " (detected)"))
+  end
+  y = y - 26
+  local note = text(options, 11, 0.6, 0.6, 0.6)
+  note:SetPoint("TOPLEFT", 18, y)
+  note:SetText("Content target: Pre-raid (raids come once their loot data exists)")
+  y = y - 24
+
+  heading(options, "Obtainable (BiS leaves these out)", y); y = y - 22
+  for _, f in ipairs({ { "reputation", "Exclude reputation items" }, { "profession", "Exclude profession bind-on-pickup items" },
+    { "pvp", "Exclude PvP rank items" }, { "darkmoon", "Exclude Darkmoon Faire items" } }) do
+    add(check(options, f[2], function() return ns.cdb.filters[f[1]] == true end,
+      function(on) ns.cdb.filters[f[1]] = on or nil; Core.settingsChanged() end, y))
+    y = y - 24
+  end
+
+  heading(options, "Score", y); y = y - 22
+  local hours = add(button(options, "", function()
+    ns.cdb.raidHours = cycle({ 2, 2.5, 3, 3.5, 4, 5 }, ns.cdb.raidHours)
+    Core.changed()
+  end, 16, y, 200))
+  hours.refresh = function() hours:SetText("Raid night: " .. ns.cdb.raidHours .. " hours") end
+  y = y - 30
+
+  heading(options, "Consumables (click to change the target)", y); y = y - 22
+  local consRows = {}
+  for i = 1, 11 do
+    local b = button(options, "", function(self)
+      local v = Core.view
+      local spec = v and v.spec
+      if not (spec and self.slot) then return end
+      local list = {}
+      for _, e in ipairs(self.ranked or {}) do list[#list + 1] = e.id end
+      list[#list + 1] = "none"
+      ns.cdb.consumables[spec] = ns.cdb.consumables[spec] or {}
+      local cur = ns.cdb.consumables[spec][self.slot] or (self.current and self.current.id)
+      ns.cdb.consumables[spec][self.slot] = cycle(list, cur)
+      Core.changed()
+    end, 16 + ((i - 1) % 2) * 196, y - math.floor((i - 1) / 2) * 24, 190)
+    b:GetFontString():SetFont(FONT, 10, "")
+    consRows[i] = b
+  end
+  local consRefresh = { refresh = function()
+    local v = Core.view
+    local spec = v and v.spec
+    local slots, catalog = {}, {}
+    if spec then slots, catalog = Core.consumablesFor(spec) end
+    local ws = v and v.set and v.set.ws
+    for i, b in ipairs(consRows) do
+      local slot = slots[i]
+      if slot and ws then
+        local ranked = {}
+        for _, e in ipairs(catalog) do if e.slot == slot then ranked[#ranked + 1] = e end end
+        table.sort(ranked, function(a, c) return ns.Score.value(a.stats, ws) > ns.Score.value(c.stats, ws) end)
+        local current
+        for _, s in ipairs(v.state.consumables or {}) do if s.slot == slot then current = s.item end end
+        local pick = ns.cdb.consumables[spec] and ns.cdb.consumables[spec][slot]
+        b.slot, b.ranked, b.current = slot, ranked, current
+        b:SetText(slot .. ": " .. (pick == "none" and "None" or (current and current.name) or "(scores nothing)"))
+        b:Show()
+      else
+        b:Hide()
+      end
+    end
+  end }
+  add(consRefresh)
+  y = y - 6 * 24 - 6
+
+  heading(options, "Display", y); y = y - 22
+  add(check(options, "Show tracker", function() return ns.db.showTracker end,
+    function(on) ns.db.showTracker = on; UI.refreshTracker(Core.view) end, y)); y = y - 24
+  add(check(options, "Buff reminder in raids", function() return ns.db.buffsRaid end,
+    function(on) ns.db.buffsRaid = on; Core.changed() end, y))
+  button(options, "Test", function() UI.buffTest() end, 260, y, 60)
+  y = y - 24
+  add(check(options, "Buff reminder in 5-player dungeons", function() return ns.db.buffsDungeon end,
+    function(on) ns.db.buffsDungeon = on; Core.changed() end, y)); y = y - 24
+  add(check(options, "Lock tracker and buff bar", function() return ns.db.locked end,
+    function(on) ns.db.locked = on or nil end, y)); y = y - 26
+  local scale = add(button(options, "", function()
+    ns.db.scale = cycle({ 0.8, 0.9, 1, 1.1, 1.25, 1.5 }, ns.db.scale)
+    UI.refreshTracker(Core.view)
+  end, 16, y, 140))
+  scale.refresh = function() scale:SetText("Tracker scale: " .. ns.db.scale) end
+  button(options, "Reset positions", function() UI.resetPositions() end, 164, y, 140)
+  y = y - 30
+
+  heading(options, "About", y); y = y - 18
+  local about = text(options, 11, 0.75, 0.75, 0.75)
+  about:SetPoint("TOPLEFT", 16, y)
+  about:SetWidth(390)
+  about:SetWordWrap(true)
+  options.about = about
+
+  options.refresh = function()
+    for _, w in ipairs(widgets) do if w.refresh then w.refresh() end end
+    local v = Core.view
+    local d = Core.data()
+    options.about:SetText("Gear data and scoring: SimGear Forever" .. (d and d.generated and (" (weights " .. d.generated .. ")") or "")
+      .. ", simmed on the MythicSim engine. Sources: cMaNGOS classic-db. "
+      .. "Status: " .. ((v and v.state and v.state.badge) or "?")
+      .. ". Issues: github.com (repo to come).")
+  end
+  options:SetScript("OnShow", options.refresh)
+  options:Hide()
+end
+
+function UI.toggleOptions()
+  if not options then buildOptions() end
+  options:SetShown(not options:IsShown())
+end
+
+function UI.resetPositions()
+  ns.db.trackerPos, ns.db.buffPos = nil, nil
+  placeAt(tracker, "trackerPos", TRACKER_DEFAULT)
+  if not InCombatLockdown() then placeAt(holder, "buffPos", BUFF_DEFAULT) end
+end
+
+function UI.buffTest()
+  Core.buffTest = not Core.buffTest
+  Core.print("buff reminder test " .. (Core.buffTest and "on: showing it as if you were in a raid" or "off"))
+  Core.changed()
+end
+
+-- /pr, /prepped -------------------------------------------------------------------------------------------
+local function slashTaken(cmd)
+  for k, v in pairs(_G) do
+    if type(k) == "string" and k:find("^SLASH_") and v == cmd and not k:find("^SLASH_PREPPED") then return k end
+  end
+end
+
+local function debug()
+  local v = Core.view
+  local d, problem = Core.data()
+  Core.print("class data: " .. (d and "loaded" or ("missing (" .. tostring(problem) .. ")")))
+  if v then
+    Core.print("spec " .. tostring(v.spec) .. " · talent group " .. Core.talentGroup() .. " · instance " .. tostring(v.instance))
+    local r = v.readiness
+    if r and r.pct then
+      Core.print(string.format("readiness %.1f%% (gear %s, enchants %s, consumables %s)", r.pct * 100,
+        r.gear and pct(r.gear) or "-", r.enchants and pct(r.enchants) or "-", r.consumables and pct(r.consumables) or "-"))
+    end
+    for inv, row in pairs(v.rows or {}) do
+      Core.print(string.format("  %s: BiS %s (%d), you %d%%", Core.SLOT_NAME[inv], row.bis.item.name or row.bis.id, row.bis.id,
+        math.floor(row.pct * 100 + 0.5)))
+    end
+  end
+  if Core.lastError then Core.print("last error: " .. tostring(Core.lastError)) end
+end
+
+local function slash(msg)
+  msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+  if msg == "" then
+    ns.db.showTracker = not ns.db.showTracker
+    Core.print("tracker " .. (ns.db.showTracker and "shown" or "hidden (/pr shows it again)"))
+    UI.refreshTracker(Core.view)
+  elseif msg == "options" or msg == "o" then
+    UI.toggleOptions()
+  elseif msg == "buffs test" then
+    UI.buffTest()
+  elseif msg == "reset" then
+    UI.resetPositions()
+  elseif msg == "debug" then
+    debug()
+  elseif msg:match("^spec") then
+    local arg = msg:match("^spec%s+(%S+)")
+    local token = select(2, UnitClass("player"))
+    local ok, value = ns.Spec.parseOverride(arg, token)
+    if not ok then Core.print("/pr spec " .. ns.Spec.usage(token) .. "|auto"); return end
+    ns.cdb.groupSpec[Core.talentGroup()] = value or nil
+    Core.settingsChanged()
+    Core.print("talent group " .. Core.talentGroup() .. ": " .. (value and (ns.Spec.NAME[value] or value) or "detected from talents"))
+  else
+    Core.print("/pr (show or hide the tracker) · /pr options · /pr spec <name>|auto · /pr buffs test · /pr reset · /pr debug")
+  end
+end
+
+local function registerSlash()
+  local taken = slashTaken("/pr")
+  SLASH_PREPPED1 = "/prepped"
+  if taken then
+    Core.print("/pr is already used by another addon (" .. taken .. "), so use /prepped.")
+  else
+    SLASH_PREPPED2 = "/pr"
+  end
+  SlashCmdList.PREPPED = slash
+end
+
+-- Addon compartment (minimap addon menu): left-click toggles the tracker, right-click opens options.
+function Prepped_OnCompartmentClick(_, button)
+  if button == "RightButton" then
+    UI.toggleOptions()
+  else
+    ns.db.showTracker = not ns.db.showTracker
+    UI.refreshTracker(Core.view)
+  end
+end
+
+function Prepped_OnCompartmentEnter(_, frame)
+  GameTooltip:SetOwner(frame, "ANCHOR_LEFT")
+  GameTooltip:AddLine("Prepped")
+  GameTooltip:AddLine("Left-click: show or hide the tracker", 1, 1, 1)
+  GameTooltip:AddLine("Right-click: options", 1, 1, 1)
+  GameTooltip:Show()
+end
+
+function Prepped_OnCompartmentLeave() GameTooltip:Hide() end
+
+function UI.onLoad()
+  buildTracker()
+  buildBuffBar()
+  registerSlash()
+  table.insert(Core.listeners, UI.refreshTracker)
+  table.insert(Core.listeners, UI.refreshBuffs)
+  table.insert(Core.listeners, function() if options and options:IsShown() then options.refresh() end end)
+  Core.changed()
+end

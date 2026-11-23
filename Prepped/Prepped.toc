@@ -1,0 +1,34 @@
+## Interface: 16001
+## Title: Prepped
+## Notes: Raid-night readiness for WoW Forever: one score across gear, enchants and consumables, attunement blockers, buff reminders and a to-do tracker. Built on SimGear Forever's data.
+## Author: Justin Dielmann
+## Version: 0.1.0-dev
+## SavedVariables: PreppedDB
+## SavedVariablesPerCharacter: PreppedCharDB
+## OptionalDeps: SimGearForever, RaidReady
+## IconTexture: Interface\Icons\INV_Potion_93
+## AddonCompartmentFunc: Prepped_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: Prepped_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: Prepped_OnCompartmentLeave
+
+SimGearShim.lua
+vendor\SimGear\HitCap.lua
+vendor\SimGear\Stats.lua
+vendor\SimGear\Score.lua
+vendor\SimGear\Classes.lua
+vendor\SimGear\Spec.lua
+vendor\SimGear\Enchants.lua
+vendor\SimGear\EnchantData.lua
+data\Lists.lua
+data\Excluded.lua
+data\Attunements.lua
+data\Consumables.lua
+SimGear.lua
+Readiness.lua
+Consumables.lua
+Bis.lua
+Attune.lua
+Tracker.lua
+Buffs.lua
+Core.lua
+UI.lua
