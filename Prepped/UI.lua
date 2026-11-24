@@ -285,7 +285,7 @@ local function buildOptions()
   options = CreateFrame("Frame", "PreppedOptions", UIParent, "BackdropTemplate")
   backdrop(options)
   options:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
-  options:SetSize(420, 620)
+  options:SetSize(420, 760)
   options:SetPoint("CENTER")
   options:SetFrameStrata("DIALOG")
   options:SetMovable(true)
@@ -337,56 +337,104 @@ local function buildOptions()
   end
 
   heading(options, "Score", y); y = y - 22
-  local hours = add(button(options, "", function()
-    ns.cdb.raidHours = cycle({ 2, 2.5, 3, 3.5, 4, 5 }, ns.cdb.raidHours)
-    Core.changed()
-  end, 16, y, 200))
-  hours.refresh = function() hours:SetText("Raid night: " .. ns.cdb.raidHours .. " hours") end
+  local hoursLabel = text(options, 12)
+  hoursLabel:SetPoint("TOPLEFT", 18, y - 4)
+  hoursLabel:SetText("Raid night length (hours):")
+  local hours = CreateFrame("EditBox", nil, options, "InputBoxTemplate")
+  hours:SetSize(50, 20)
+  hours:SetPoint("LEFT", hoursLabel, "RIGHT", 10, 0)
+  hours:SetAutoFocus(false)
+  hours:SetMaxLetters(4)
+  local function applyHours(self)
+    local n = tonumber((self:GetText() or ""):gsub(",", "."))
+    if n and n >= 0.5 and n <= 12 then
+      ns.cdb.raidHours = n
+      Core.changed()
+    end
+    self:SetText(ns.cdb.raidHours) -- a bad entry goes back to the saved value
+    self:ClearFocus()
+  end
+  hours:SetScript("OnEnterPressed", applyHours)
+  hours:SetScript("OnEditFocusLost", applyHours)
+  hours:SetScript("OnEscapePressed", function(self) self:SetText(ns.cdb.raidHours); self:ClearFocus() end)
+  add({ refresh = function() if not hours:HasFocus() then hours:SetText(ns.cdb.raidHours) end end })
   y = y - 30
 
-  heading(options, "Consumables (click to change the target)", y); y = y - 22
+  heading(options, "Consumables (the target for each slot)", y); y = y - 24
+  -- One row per slot: its name and a dropdown (Baganator's API, so present on Forever); a click-to-cycle
+  -- button stands in if this client has no dropdown template.
   local consRows = {}
-  for i = 1, 11 do
-    local b = button(options, "", function(self)
-      local v = Core.view
-      local spec = v and v.spec
-      if not (spec and self.slot) then return end
-      local list = {}
-      for _, e in ipairs(self.ranked or {}) do list[#list + 1] = e.id end
-      list[#list + 1] = "none"
-      ns.cdb.consumables[spec] = ns.cdb.consumables[spec] or {}
-      local cur = ns.cdb.consumables[spec][self.slot] or (self.current and self.current.id)
-      ns.cdb.consumables[spec][self.slot] = cycle(list, cur)
-      Core.changed()
-    end, 16 + ((i - 1) % 2) * 196, y - math.floor((i - 1) / 2) * 24, 190)
-    b:GetFontString():SetFont(FONT, 10, "")
-    consRows[i] = b
+  local function setPick(spec, slot, value)
+    ns.cdb.consumables[spec] = ns.cdb.consumables[spec] or {}
+    ns.cdb.consumables[spec][slot] = value
+    Core.changed()
   end
-  local consRefresh = { refresh = function()
+  for i = 1, 11 do
+    local label = text(options, 12)
+    label:SetPoint("TOPLEFT", 18, y - (i - 1) * 26 - 5)
+    label:SetWidth(90)
+    local ok, d = pcall(CreateFrame, "DropdownButton", nil, options, "WowStyle1DropdownTemplate")
+    if not (ok and d and d.SetupMenu) then
+      d = button(options, "", function(self)
+        local v = Core.view
+        if not (v and v.spec and self.slot) then return end
+        local list = { false }
+        for _, e in ipairs(self.ranked or {}) do list[#list + 1] = e.id end
+        list[#list + 1] = "none"
+        local cur = ns.cdb.consumables[v.spec] and ns.cdb.consumables[v.spec][self.slot] or false
+        setPick(v.spec, self.slot, cycle(list, cur) or nil)
+      end, 0, 0, 260)
+      d.cycling = true
+    end
+    d:ClearAllPoints()
+    d:SetPoint("TOPLEFT", 112, y - (i - 1) * 26)
+    d:SetWidth(260)
+    consRows[i] = { label = label, d = d }
+  end
+  local slotNames = { flask = "Flask", agility = "Agility", strength = "Strength", ap = "Attack power", armor = "Armor",
+    health = "Health", spellpower = "Spell power", school = "School", mana = "Mana", scroll = "Scroll", food = "Food",
+    drink = "Drink", weapon = "Weapon", potion = "Potion" }
+  add({ refresh = function()
     local v = Core.view
     local spec = v and v.spec
     local slots, catalog = {}, {}
     if spec then slots, catalog = Core.consumablesFor(spec) end
     local ws = v and v.set and v.set.ws
-    for i, b in ipairs(consRows) do
-      local slot = slots[i]
+    for i, row in ipairs(consRows) do
+      local slot, d = slots[i], row.d
       if slot and ws then
         local ranked = {}
         for _, e in ipairs(catalog) do if e.slot == slot then ranked[#ranked + 1] = e end end
-        table.sort(ranked, function(a, c) return ns.Score.value(a.stats, ws) > ns.Score.value(c.stats, ws) end)
-        local current
-        for _, s in ipairs(v.state.consumables or {}) do if s.slot == slot then current = s.item end end
+        local function pts(e) return ns.Score.value(e.stats, ws) end
+        table.sort(ranked, function(a, c) return pts(a) > pts(c) end)
         local pick = ns.cdb.consumables[spec] and ns.cdb.consumables[spec][slot]
-        b.slot, b.ranked, b.current = slot, ranked, current
-        b:SetText(slot .. ": " .. (pick == "none" and "None" or (current and current.name) or "(scores nothing)"))
-        b:Show()
+        local function nameOf(e) return e.name .. (pts(e) > 0 and "" or " (no points for you)") end
+        row.label:SetText(slotNames[slot] or slot)
+        row.label:Show()
+        if d.cycling then
+          local shown = "Best for you"
+          for _, e in ipairs(ranked) do if e.id == pick then shown = nameOf(e) end end
+          if pick == "none" then shown = "None" end
+          d.slot, d.ranked = slot, ranked
+          d:SetText(shown)
+        else
+          d:SetupMenu(function(_, root)
+            local function isPick(value) return (pick or false) == value end
+            local function choose(value) setPick(spec, slot, value or nil) end
+            root:CreateRadio("Best for you" .. (ranked[1] and pts(ranked[1]) > 0 and (" (" .. ranked[1].name .. ")") or ""),
+              isPick, choose, false)
+            for _, e in ipairs(ranked) do root:CreateRadio(nameOf(e), isPick, choose, e.id) end
+            root:CreateRadio("None", isPick, choose, "none")
+          end)
+        end
+        d:Show()
       else
-        b:Hide()
+        row.label:Hide()
+        d:Hide()
       end
     end
-  end }
-  add(consRefresh)
-  y = y - 6 * 24 - 6
+  end })
+  y = y - 11 * 26 - 8
 
   heading(options, "Display", y); y = y - 22
   add(check(options, "Show tracker", function() return ns.db.showTracker end,

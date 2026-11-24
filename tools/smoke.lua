@@ -125,3 +125,8 @@ if v.buffSlots then
   for _, m in ipairs(list) do print("  buff missing: " .. m.item.name .. " (" .. m.bags .. " in bags)") end
 end
 SlashCmdList.PREPPED("debug")
+
+-- Build and fill the options window once, as opening it in game does.
+ns.UI.toggleOptions()
+PreppedOptions.scripts.OnShow(PreppedOptions)
+print("options window built")
