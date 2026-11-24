@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install luajit, jq and unzip
+        run: sudo apt-get update -q && sudo apt-get install -y -q luajit jq unzip
+
+      # The tests run SimGear's real class data and fail without it (test/lib.lua), so CI fetches
+      # the pinned SimGear Forever release from CurseForge. Needs the CF_CORE_API_KEY secret.
+      - name: Fetch the pinned SimGear Forever
+        env:
+          CF_CORE_API_KEY: ${{ secrets.CF_CORE_API_KEY }}
+        run: tools/simgear_cf.sh fetch "$(tools/simgear_cf.sh pinned)" "$RUNNER_TEMP/AddOns"
+
+      - name: Run the tests
+        env:
+          PREPPED_SIMGEAR_DIR: ${{ runner.temp }}/AddOns
+        run: ./run_tests.sh

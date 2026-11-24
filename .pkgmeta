@@ -1,0 +1,35 @@
+# BigWigs packager (https://github.com/BigWigsMods/packager): one zip holding Prepped and the
+# per-class SimGear backup data addons, uploaded to CurseForge and Wago by .github/workflows/release.yml.
+#
+# The repo is the "Prepped" package folder; the addons live in subfolders and move to the zip root.
+# A move-folders source that doesn't exist is skipped, so the backup lines are safe before the
+# PreppedBackup_<Class>/ folders land.
+package-as: Prepped
+
+move-folders:
+  Prepped/Prepped: Prepped
+  Prepped/PreppedBackup_Druid: PreppedBackup_Druid
+  Prepped/PreppedBackup_Hunter: PreppedBackup_Hunter
+  Prepped/PreppedBackup_Mage: PreppedBackup_Mage
+  Prepped/PreppedBackup_Paladin: PreppedBackup_Paladin
+  Prepped/PreppedBackup_Priest: PreppedBackup_Priest
+  Prepped/PreppedBackup_Rogue: PreppedBackup_Rogue
+  Prepped/PreppedBackup_Shaman: PreppedBackup_Shaman
+  Prepped/PreppedBackup_Warlock: PreppedBackup_Warlock
+  Prepped/PreppedBackup_Warrior: PreppedBackup_Warrior
+
+# Repo files that are not part of the addon. What isn't moved or ignored stays in the Prepped folder
+# (LICENSE, CHANGELOG.md).
+ignore:
+  - .github
+  - .claude
+  - test
+  - tools
+  - run_tests.sh
+  - README.md
+  - .pkgmeta
+  - .gitignore
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
