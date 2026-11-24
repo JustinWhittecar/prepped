@@ -285,7 +285,7 @@ local function buildOptions()
   options = CreateFrame("Frame", "PreppedOptions", UIParent, "BackdropTemplate")
   backdrop(options)
   options:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
-  options:SetSize(420, 840)
+  options:SetSize(420, 864)
   options:SetPoint("CENTER")
   options:SetFrameStrata("DIALOG")
   options:SetMovable(true)
@@ -330,9 +330,10 @@ local function buildOptions()
 
   heading(options, "Obtainable (BiS leaves these out)", y); y = y - 22
   for _, f in ipairs({ { "reputation", "Exclude reputation items" }, { "profession", "Exclude profession bind-on-pickup items" },
-    { "pvp", "Exclude PvP rank items" }, { "darkmoon", "Exclude Darkmoon Faire items" } }) do
+    { "pvp", "Exclude PvP rank items" }, { "darkmoon", "Exclude Darkmoon Faire items" },
+    { "unconfirmed", "Exclude unconfirmed consumables (Jujus)" } }) do
     add(check(options, f[2], function() return ns.cdb.filters[f[1]] == true end,
-      function(on) ns.cdb.filters[f[1]] = on or nil; Core.settingsChanged() end, y))
+      function(on) ns.cdb.filters[f[1]] = on == true; Core.settingsChanged() end, y))
     y = y - 24
   end
 

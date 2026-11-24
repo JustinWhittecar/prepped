@@ -8,7 +8,8 @@
 --           10 health = 1 Stamina; mana as Intellect, 15 mana = 1 Intellect)
 --   roles   only these roles get it (none = everyone), so a tiny spell weight never puts a caster
 --           buff on a melee spec
---   source  an Obtainable filter that leaves it out of the defaults
+--   source  an Obtainable filter that leaves it out of the defaults ("unconfirmed": not yet seen
+--           on Forever, excluded unless the player turns that filter off)
 --   perNight  potions only: how many one raid night calls for
 -- Families: flask (one), buff (one per stat: elixirs, scrolls, Jujus, Firewater; a scroll and an elixir
 -- of one stat conflict, seen in game 2026-11-23), food (one Well Fed), weapon (one oil or stone),
@@ -38,12 +39,12 @@ ns.ConsumableCatalog = {
   { id = 250351, name = "Elixir of the Grizzly", family = "buff", stats = { Strength = 25, MeleeCrit = 2 }, duration = 30 * M },
   { id = 250350, name = "Elixir of Ferocity", family = "buff", stats = { Strength = 18, Agility = 18 }, duration = 30 * M },
   { id = 13453, name = "Elixir of Brute Force", family = "buff", stats = { Strength = 18, Stamina = 18 }, duration = H },
-  { id = 12451, name = "Juju Power", family = "buff", stats = { Strength = 30 }, duration = 30 * M },
+  { id = 12451, name = "Juju Power", family = "buff", stats = { Strength = 30 }, duration = 30 * M, source = "unconfirmed" },
   { id = 10310, name = "Scroll of Strength IV", family = "buff", stats = { Strength = 17 }, duration = 30 * M },
   -- Attack power
   { id = 246948, name = "Distilled Firewater", family = "buff", stats = { AttackPower = 35 }, duration = 20 * M },
   { id = 12820, name = "Winterfall Firewater", family = "buff", stats = { AttackPower = 35 }, duration = 20 * M },
-  { id = 12460, name = "Juju Might", family = "buff", stats = { AttackPower = 40 }, duration = 10 * M },
+  { id = 12460, name = "Juju Might", family = "buff", stats = { AttackPower = 40 }, duration = 10 * M, source = "unconfirmed" },
   -- Armor, health, stamina
   { id = 13445, name = "Elixir of Greater Defense", family = "buff", stats = { Armor = 450 }, duration = H },
   { id = 250329, name = "Elixir of the Phalanx", family = "buff", stats = { Armor = 500, Stamina = 40 }, claims = { "Armor", "Health" }, duration = 30 * M },

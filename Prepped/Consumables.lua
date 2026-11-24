@@ -37,12 +37,15 @@ end
 local function single(family, opts)
   local pick = opts.picks and opts.picks[family]
   if pick == "none" then return nil end
-  local target, best
+  local target, best, bestOwned
   for _, e in ipairs(opts.catalog) do
     if e.family == family then
       if e.id == pick then return e end
       local pts = opts.score(e.stats)
-      if not excluded(e, opts) and (not best or pts > best) then target, best = e, pts end
+      local owned = (opts.stock[e.id] or 0) > 0
+      if not excluded(e, opts) and (not best or pts > best or (pts == best and owned and not bestOwned)) then
+        target, best, bestOwned = e, pts, owned
+      end
     end
   end
   return target
@@ -103,7 +106,12 @@ local function bestBuffs(opts)
       if pts > 0 and not overlaps(keys, used) then cands[#cands + 1] = { e = e, pts = pts, keys = keys } end
     end
   end
-  table.sort(cands, function(a, b) return a.pts > b.pts end)
+  -- Best first; on an exact tie what the player owns comes first, so the search finds it first.
+  local function owned(c) return (opts.stock[c.e.id] or 0) > 0 and 1 or 0 end
+  table.sort(cands, function(a, b)
+    if a.pts ~= b.pts then return a.pts > b.pts end
+    return owned(a) > owned(b)
+  end)
   -- rest[i] = the points of candidates i.. together: no combination from i on can beat that.
   local rest = { [#cands + 1] = 0 }
   for i = #cands, 1, -1 do rest[i] = rest[i + 1] + cands[i].pts end

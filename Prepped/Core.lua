@@ -25,7 +25,9 @@ local function initDB()
   defaults(ns.db, DB_DEFAULTS)
   defaults(ns.cdb, CHAR_DEFAULTS)
   ns.cdb.groupSpec = ns.cdb.groupSpec or {} -- talent group -> SimGear spec, chosen or confirmed
-  ns.cdb.filters = ns.cdb.filters or {}     -- all off by default
+  ns.cdb.filters = ns.cdb.filters or {}     -- off by default, but for unconfirmed consumables
+  -- Consumables nobody has confirmed on Forever (Jujus) stay out of the defaults until the player says.
+  if ns.cdb.filters.unconfirmed == nil then ns.cdb.filters.unconfirmed = true end
   ns.cdb.consumables = ns.cdb.consumables or {} -- [spec][slot] = item ID or "none"
   -- Moving from Raid Ready: its talent-group choices, once.
   local rr = _G.RaidReadyCharDB

@@ -124,6 +124,14 @@ local RUMSEY = { id = 21151, name = "Rumsey Rum Black Label", family = "buff", s
 T.eq("claims decide conflicts", names(plan({ catalog = { FORTITUDE, RUMSEY } }), "buff"),
   "Elixir of Greater Fortitude, Rumsey Rum Black Label")
 
+-- An exact tie goes to what the player owns, not to catalog order.
+local DISTILLED = { id = 246948, name = "Distilled Firewater", family = "buff", stats = { AttackPower = 35 }, duration = 1200 }
+local WINTERFALL = { id = 12820, name = "Winterfall Firewater", family = "buff", stats = { AttackPower = 35 }, duration = 1200 }
+T.eq("tie -> owned buff", names(plan({ catalog = { DISTILLED, WINTERFALL }, stock = { [12820] = 25 } }), "buff"), "Winterfall Firewater")
+local DUMPLINGS = { id = 20452, name = "Smoked Desert Dumplings", family = "food", stats = { Strength = 20 }, duration = 900 }
+local STEAK = { id = 250072, name = "Swiftstrike Steak", family = "food", stats = { Agility = 20 }, duration = 900 }
+T.eq("tie -> owned food", familyRow(plan({ catalog = { STEAK, DUMPLINGS }, stock = { [20452] = 41 } }), "food").item.id, 20452)
+
 -- Potions are stock only: each listed potion is a row needing its per-night count, worth no points.
 local HEALING = { id = 13446, name = "Major Healing Potion", family = "potion", stats = {}, perNight = 5 }
 local FREE_ACTION = { id = 5634, name = "Free Action Potion", family = "potion", stats = {}, perNight = 2 }
