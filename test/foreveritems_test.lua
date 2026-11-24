@@ -45,4 +45,23 @@ T.eq("other class left out", items[226900], nil)
 T.eq("nothing to equip left out", items[226902], nil)
 T.eq("SimGear's own record wins", items[18531], nil)
 
+-- Sources SimGear lacks (vendor items such as the Undermine Reals gear): an item with no source
+-- gets Prepped's, as a copy (SimGear's tables are shared); one with sources keeps its own.
+local sgItems = {
+  [272396] = { name = "Shifter's Belt", slot = "INVTYPE_WAIST", stats = {}, sources = {} },
+  [13340] = { name = "Cape of the Black Baron", slot = "INVTYPE_CLOAK", stats = {}, sources = { { kind = "drop" } } },
+}
+local extra = { [272396] = { kind = "vendor", text = "Pix Xizzix, Booty Bay · 100 Tarnished Undermine Reals" },
+  [13340] = { kind = "vendor", text = "should not replace" }, [99999] = { kind = "vendor", text = "not an item here" } }
+local merged = F.addSources(sgItems, extra)
+T.eq("vendor source added", merged[272396].sources[1].text, "Pix Xizzix, Booty Bay · 100 Tarnished Undermine Reals")
+T.eq("SimGear's table untouched", #sgItems[272396].sources, 0)
+T.eq("own sources kept", merged[13340].sources[1].kind, "drop")
+T.eq("no new items", merged[99999], nil)
+
+-- A vendor's price as text: currencies and items it costs, then gold.
+T.eq("currency cost", F.costText(0, { { amount = 100, name = "Tarnished Undermine Real" } }), "100 Tarnished Undermine Real")
+T.eq("gold and item", F.costText(250000, { { amount = 2, name = "Arcanite Bar" } }), "2 Arcanite Bar + 25g")
+T.eq("gold only", F.costText(1500, {}), "15s")
+
 T.done()

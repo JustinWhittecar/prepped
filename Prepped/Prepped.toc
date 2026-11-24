@@ -24,6 +24,8 @@ data\Excluded.lua
 data\Attunements.lua
 data\Consumables.lua
 data\ForeverItems.lua
+data\VendorSources.lua
+data\Sources.lua
 SimGear.lua
 ForeverItems.lua
 Readiness.lua

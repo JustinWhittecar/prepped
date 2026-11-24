@@ -45,3 +45,38 @@ function ForeverItems.forClass(records, token, have, normalize)
   end
   return out
 end
+
+-- Sources SimGear lacks: items with no source get Prepped's ({[id] = {kind, text}}), as copies, since
+-- SimGear's tables are shared. Items with sources keep their own; extra IDs not in items are ignored.
+-- Returns items itself when nothing changes.
+function ForeverItems.addSources(items, extra)
+  local changed
+  for id, src in pairs(extra or {}) do
+    local item = items[id]
+    if item and not (type(item.sources) == "table" and #item.sources > 0) then
+      changed = changed or {}
+      local copy = {}
+      for k, v in pairs(item) do copy[k] = v end
+      copy.sources = { src }
+      changed[id] = copy
+    end
+  end
+  if not changed then return items end
+  local out = {}
+  for id, item in pairs(items) do out[id] = changed[id] or item end
+  return out
+end
+
+-- A vendor price as text: "100 Tarnished Undermine Real", "2 Arcanite Bar + 25g", "15s".
+-- copper: the gold price; costs: { {amount, name} } for currencies and items.
+function ForeverItems.costText(copper, costs)
+  local parts = {}
+  for _, c in ipairs(costs or {}) do parts[#parts + 1] = c.amount .. " " .. c.name end
+  copper = copper or 0
+  if copper > 0 then
+    local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
+    local money = g > 0 and (g .. "g") or s > 0 and (s .. "s") or (c .. "c")
+    parts[#parts + 1] = money
+  end
+  return table.concat(parts, " + ")
+end

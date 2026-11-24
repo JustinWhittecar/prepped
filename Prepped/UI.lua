@@ -594,6 +594,8 @@ local function slash(msg)
     UI.resetPositions()
   elseif msg == "debug" then
     debug()
+  elseif msg == "harvest vendor" then -- maintainers only, like harvest
+    Core.harvestVendor()
   elseif msg:match("^harvest") then -- maintainers only, so not in the help line (see Core.harvest)
     local a, b = msg:match("^harvest%s+(%d+)%s+(%d+)")
     Core.harvest(tonumber(a), tonumber(b))

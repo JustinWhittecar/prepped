@@ -57,13 +57,22 @@ function Core.withForeverItems(items, token)
   local extra = ns.ForeverItems.forClass(records, token, items, function(raw, loc)
     return ns.Stats.addWeaponDps((ns.Stats.normalize(raw)), loc)
   end)
-  if not next(extra) then return items end
-  local out = {}
-  for id, item in pairs(items) do out[id] = item end
-  for id, item in pairs(extra) do out[id] = item end
+  local out = items
+  if next(extra) then
+    out = {}
+    for id, item in pairs(items) do out[id] = item end
+    for id, item in pairs(extra) do out[id] = item end
+  end
   Core.foreverCount = 0
   for _ in pairs(extra) do Core.foreverCount = Core.foreverCount + 1 end
-  return out
+  -- Sources SimGear lacks: captured vendor stock, then this account's captures, then the hand-kept list.
+  local sources = {}
+  for id, src in pairs(ns.VendorSources or {}) do sources[id] = src end
+  for _, v in pairs(ns.db and ns.db.vendors or {}) do
+    for id, cost in pairs(v.items or {}) do sources[id] = { kind = "vendor", text = v.name .. ", " .. (v.zone or "?") .. " · " .. cost } end
+  end
+  for id, src in pairs(ns.ExtraSources or {}) do sources[id] = src end
+  return ns.ForeverItems.addSources(out, sources)
 end
 
 function Core.data()
@@ -600,4 +609,41 @@ function Core.harvest(from, to)
       Core.print(("harvest done: %d items, %d IDs with nothing. In use now; /reload to save them."):format(found, none))
     end
   end)
+end
+
+-- /prep harvest vendor, with a vendor's window open: records every item it sells and the price,
+-- saved to PreppedDB.vendors. SimGear gives no source for vendor gear such as the Undermine Reals
+-- items, so without this Prepped never targets them.
+function Core.harvestVendor()
+  local n = GetMerchantNumItems and GetMerchantNumItems() or 0
+  if n == 0 then Core.print("harvest vendor: open a vendor's window first"); return end
+  local name = UnitName("npc") or "Vendor"
+  local entry = { name = name, zone = GetZoneText and GetZoneText() or nil, items = {} }
+  local count = 0
+  for i = 1, n do
+    local id = GetMerchantItemID(i)
+    if id then
+      local copper = 0
+      if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+        local ok, info = pcall(C_MerchantFrame.GetItemInfo, i)
+        if ok and type(info) == "table" then copper = info.price or 0 end
+      elseif GetMerchantItemInfo then
+        copper = select(3, GetMerchantItemInfo(i)) or 0
+      end
+      local costs = {}
+      local nCosts = GetMerchantItemCostInfo and GetMerchantItemCostInfo(i) or 0
+      for j = 1, nCosts do
+        local _, amount, link, currency = GetMerchantItemCostItem(i, j)
+        local costName = currency or (link and C_Item.GetItemInfo(link)) or "?"
+        costs[#costs + 1] = { amount = amount or 0, name = costName }
+      end
+      entry.items[id] = ns.ForeverItems.costText(copper, costs)
+      count = count + 1
+    end
+  end
+  ns.db.vendors = ns.db.vendors or {}
+  ns.db.vendors[name] = entry
+  Core.resetItems()
+  Core.changed(true)
+  Core.print(("harvest vendor: %d items from %s. In use now; /reload to save them."):format(count, name))
 end
