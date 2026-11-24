@@ -285,7 +285,7 @@ local function buildOptions()
   options = CreateFrame("Frame", "PreppedOptions", UIParent, "BackdropTemplate")
   backdrop(options)
   options:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
-  options:SetSize(420, 760)
+  options:SetSize(420, 840)
   options:SetPoint("CENTER")
   options:SetFrameStrata("DIALOG")
   options:SetMovable(true)
@@ -360,16 +360,18 @@ local function buildOptions()
   add({ refresh = function() if not hours:HasFocus() then hours:SetText(ns.cdb.raidHours) end end })
   y = y - 30
 
-  heading(options, "Consumables (the target for each slot)", y); y = y - 24
-  -- One row per slot: its name and a dropdown (Baganator's API, so present on Forever); a click-to-cycle
-  -- button stands in if this client has no dropdown template.
+  heading(options, "Consumables (buffs of one stat don't stack)", y); y = y - 24
+  -- One row per choice: flask, then each stat your buffs raise (an elixir and a scroll of one stat
+  -- conflict), then food and weapon. A dropdown each (Baganator's API, so present on Forever); a
+  -- click-to-cycle button stands in if this client has no dropdown template.
+  local MAX_ROWS = 14
   local consRows = {}
-  local function setPick(spec, slot, value)
+  local function setPick(spec, key, value)
     ns.cdb.consumables[spec] = ns.cdb.consumables[spec] or {}
-    ns.cdb.consumables[spec][slot] = value
+    ns.cdb.consumables[spec][key] = value
     Core.changed()
   end
-  for i = 1, 11 do
+  for i = 1, MAX_ROWS do
     local label = text(options, 12)
     label:SetPoint("TOPLEFT", 18, y - (i - 1) * 26 - 5)
     label:SetWidth(90)
@@ -377,12 +379,12 @@ local function buildOptions()
     if not (ok and d and d.SetupMenu) then
       d = button(options, "", function(self)
         local v = Core.view
-        if not (v and v.spec and self.slot) then return end
+        if not (v and v.spec and self.key) then return end
         local list = { false }
         for _, e in ipairs(self.ranked or {}) do list[#list + 1] = e.id end
         list[#list + 1] = "none"
-        local cur = ns.cdb.consumables[v.spec] and ns.cdb.consumables[v.spec][self.slot] or false
-        setPick(v.spec, self.slot, cycle(list, cur) or nil)
+        local cur = ns.cdb.consumables[v.spec] and ns.cdb.consumables[v.spec][self.key] or false
+        setPick(v.spec, self.key, cycle(list, cur) or nil)
       end, 0, 0, 260)
       d.cycling = true
     end
@@ -391,39 +393,82 @@ local function buildOptions()
     d:SetWidth(260)
     consRows[i] = { label = label, d = d }
   end
-  local slotNames = { flask = "Flask", agility = "Agility", strength = "Strength", ap = "Attack power", armor = "Armor",
-    health = "Health", spellpower = "Spell power", school = "School", mana = "Mana", scroll = "Scroll", food = "Food",
-    drink = "Drink", weapon = "Weapon", potion = "Potion" }
+  local LABEL = { flask = "Flask", food = "Food", weapon = "Weapon", Agility = "Agility", Strength = "Strength",
+    AttackPower = "Attack power", MeleeCrit = "Crit", SpellCrit = "Spell crit", Armor = "Armor", Health = "Health",
+    Stamina = "Stamina", SpellPower = "Spell power", ShadowPower = "Shadow power", NaturePower = "Nature power",
+    HolyPower = "Holy power", FrostPower = "Frost power", FirePower = "Fire power", HealingPower = "Healing",
+    Intellect = "Intellect", Spirit = "Spirit", Mp5 = "Mana regen" }
+  -- The choices for the spec: { key, label, ranked entries }, flask first, food and weapon last.
+  local function choices(spec, ws)
+    local catalog = Core.consumablesFor(spec)
+    local rule = { critStacks = ns.ConsumableRules.critStacks }
+    local function pts(e) return ns.Score.value(e.stats, ws) end
+    local byKey, statKeys = {}, {}
+    local function put(key, e)
+      if not byKey[key] then
+        byKey[key] = {}
+        if key ~= "flask" and key ~= "food" and key ~= "weapon" then statKeys[#statKeys + 1] = key end
+      end
+      table.insert(byKey[key], e)
+    end
+    for _, e in ipairs(catalog) do
+      if pts(e) > 0 then
+        if e.family == "buff" then
+          for _, k in ipairs(ns.Consumables.claims(e, rule)) do put(k, e) end
+        elseif e.family ~= "potion" then
+          put(e.family, e)
+        end
+      end
+    end
+    table.sort(statKeys, function(a, b) return (LABEL[a] or a) < (LABEL[b] or b) end)
+    local keys = { "flask" }
+    for _, k in ipairs(statKeys) do keys[#keys + 1] = k end
+    keys[#keys + 1] = "food"
+    keys[#keys + 1] = "weapon"
+    local out = {}
+    for _, k in ipairs(keys) do
+      if byKey[k] then
+        table.sort(byKey[k], function(a, b) return pts(a) > pts(b) end)
+        out[#out + 1] = { key = k, label = LABEL[k] or k, ranked = byKey[k] }
+      end
+    end
+    return out, pts
+  end
   add({ refresh = function()
     local v = Core.view
     local spec = v and v.spec
-    local slots, catalog = {}, {}
-    if spec then slots, catalog = Core.consumablesFor(spec) end
     local ws = v and v.set and v.set.ws
+    local list, pts = {}, nil
+    if spec and ws then list, pts = choices(spec, ws) end
+    local picks = spec and ns.cdb.consumables[spec] or {}
     for i, row in ipairs(consRows) do
-      local slot, d = slots[i], row.d
-      if slot and ws then
-        local ranked = {}
-        for _, e in ipairs(catalog) do if e.slot == slot then ranked[#ranked + 1] = e end end
-        local function pts(e) return ns.Score.value(e.stats, ws) end
-        table.sort(ranked, function(a, c) return pts(a) > pts(c) end)
-        local pick = ns.cdb.consumables[spec] and ns.cdb.consumables[spec][slot]
-        local function nameOf(e) return e.name .. (pts(e) > 0 and "" or " (no points for you)") end
-        row.label:SetText(slotNames[slot] or slot)
+      local c, d = list[i], row.d
+      if c then
+        -- What fills this choice now, and whether a pick under another choice put it there.
+        local filling
+        for _, r in ipairs(v.consumableRows or {}) do
+          for _, e in ipairs(c.ranked) do if r.item and r.item.id == e.id then filling = e end end
+        end
+        local pick = picks[c.key]
+        local covered = false
+        for key, value in pairs(picks) do
+          if key ~= c.key and filling and value == filling.id then covered = true end
+        end
+        local best = "Best for you" .. (filling and (covered and (" (covered by " .. filling.name .. ")") or (" (" .. filling.name .. ")")) or "")
+        row.label:SetText(c.label)
         row.label:Show()
         if d.cycling then
-          local shown = "Best for you"
-          for _, e in ipairs(ranked) do if e.id == pick then shown = nameOf(e) end end
+          local shown = best
+          for _, e in ipairs(c.ranked) do if e.id == pick then shown = e.name end end
           if pick == "none" then shown = "None" end
-          d.slot, d.ranked = slot, ranked
+          d.key, d.ranked = c.key, c.ranked
           d:SetText(shown)
         else
           d:SetupMenu(function(_, root)
             local function isPick(value) return (pick or false) == value end
-            local function choose(value) setPick(spec, slot, value or nil) end
-            root:CreateRadio("Best for you" .. (ranked[1] and pts(ranked[1]) > 0 and (" (" .. ranked[1].name .. ")") or ""),
-              isPick, choose, false)
-            for _, e in ipairs(ranked) do root:CreateRadio(nameOf(e), isPick, choose, e.id) end
+            local function choose(value) setPick(spec, c.key, value or nil) end
+            root:CreateRadio(best, isPick, choose, false)
+            for _, e in ipairs(c.ranked) do root:CreateRadio(e.name, isPick, choose, e.id) end
             root:CreateRadio("None", isPick, choose, "none")
           end)
         end
@@ -434,7 +479,7 @@ local function buildOptions()
       end
     end
   end })
-  y = y - 11 * 26 - 8
+  y = y - MAX_ROWS * 26 - 8
 
   heading(options, "Display", y); y = y - 22
   add(check(options, "Show tracker", function() return ns.db.showTracker end,

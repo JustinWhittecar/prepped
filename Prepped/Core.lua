@@ -332,62 +332,64 @@ local function auraUp(spellID)
   return a ~= nil
 end
 
+-- Whether a consumable's buff is up: food by the Well Fed buff, an oil or stone by the weapon's
+-- temporary enchant, anything else by the buff the item's own spell gives.
 local function buffStatus(entry)
-  if entry.aura == "Well Fed" then
+  if entry.family == "food" then
     if not (C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName) then return "unknown" end
     local ok, a = pcall(C_UnitAuras.GetAuraDataBySpellName, "player", "Well Fed", "HELPFUL")
     if not ok or secret(a) then return "unknown" end
     return a ~= nil
-  elseif entry.aura == "weapon" then
+  elseif entry.family == "weapon" then
     local ok, has = pcall(GetWeaponEnchantInfo)
     if not ok or secret(has) then return "unknown" end
     return has == true
   end
-  local ids = { entry.aura }
   local _, sid = C_Item.GetItemSpell(entry.id)
-  if sid and sid ~= entry.aura then ids[#ids + 1] = sid end
-  local unknown = false
-  for _, s in ipairs(ids) do
-    local r = auraUp(s)
-    if r == true then return true end
-    if r == "unknown" then unknown = true end
-  end
-  return unknown and "unknown" or false
+  if not sid then return "unknown" end -- item not loaded yet: never nag on a guess
+  return auraUp(sid)
 end
 
--- The spec's consumable role, its slots and the catalog entries open to it.
+-- The spec's consumable role and the catalog entries open to it: its role's, the role it also takes
+-- (cat: melee), no weapon buff in feral forms, and the role's extra potions.
 function Core.consumablesFor(spec)
   local role = ns.ConsumableRoles[spec] or "melee"
-  local group = ns.ConsumableRoleGroup[role] or role
+  local also = ns.ConsumableRoleAlso[role]
+  local extra = ns.ConsumableExtraPotions[role] or {}
   local catalog = {}
   for _, e in ipairs(ns.ConsumableCatalog) do
-    if not e.roles or e.roles[group] then catalog[#catalog + 1] = e end
+    local open = not e.roles or e.roles[role] or (also and e.roles[also])
+    if e.family == "weapon" and ns.ConsumableNoWeapon[role] then open = false end
+    if open then
+      catalog[#catalog + 1] = e
+    elseif extra[e.id] then
+      local copy = {}
+      for k, v in pairs(e) do copy[k] = v end
+      copy.perNight = extra[e.id]
+      catalog[#catalog + 1] = copy
+    end
   end
-  return ns.ConsumableSlots[role], catalog, role
+  return catalog, role
 end
 
 local function consumablePlan(spec, set, inRaid)
-  local slots, catalog, role = Core.consumablesFor(spec)
+  local catalog = Core.consumablesFor(spec)
   local stock, auras = {}, nil
   for _, e in ipairs(catalog) do stock[e.id] = itemCount(e.id, true) end
-  local overrides = {}
-  for k, v in pairs(ns.cdb.consumables[spec] or {}) do overrides[k] = v end
-  overrides.potion = overrides.potion or ns.ConsumablePotion[role] or 13446
   if inRaid then
     auras = {}
-    for _, e in ipairs(catalog) do
-      if e.aura and auras[e.aura] == nil then auras[e.aura] = buffStatus(e) end
-    end
+    for _, e in ipairs(catalog) do if e.family ~= "potion" then auras[e.id] = buffStatus(e) end end
   end
   local plan = ns.Consumables.plan({
-    catalog = catalog, slots = slots, stock = stock, raidHours = ns.cdb.raidHours,
-    overrides = overrides, filters = ns.cdb.filters, auras = auras,
+    catalog = catalog, stock = stock, raidHours = ns.cdb.raidHours,
+    picks = ns.cdb.consumables[spec], filters = ns.cdb.filters, auras = auras,
+    critStacks = ns.ConsumableRules.critStacks,
     score = function(stats) return ns.Score.value(stats, set.ws) end,
   })
-  -- A slot whose best item does nothing for the spec isn't shown (potions are kept: stock only).
+  -- A row worth nothing to the spec isn't shown (potions are kept: stock only).
   local shown = {}
-  for _, s in ipairs(plan.slots) do
-    if s.item and (s.max > 0 or s.slot == "potion" or s.unknown) then shown[#shown + 1] = s end
+  for _, r in ipairs(plan.rows) do
+    if r.max > 0 or r.slot == "potion" or r.unknown then shown[#shown + 1] = r end
   end
   return plan, shown, stock
 end
@@ -432,6 +434,7 @@ function Core.compute()
   for _, t in ipairs(enchTodos) do steps[#steps + 1] = t end
   local r = ns.Readiness.compute({ gear = gear, enchants = ench, consumables = { have = plan.have, bis = plan.bis } }, steps)
   state.prep, state.todos, state.consumables = r.pct, r.steps, shown
+  view.consumableRows = plan.rows
   view.readiness, view.rows, view.set = r, rows, set
   if inRaid or (inInstance and kind == "party") then
     local raidPlan, raidShown = consumablePlan(spec, set, true)

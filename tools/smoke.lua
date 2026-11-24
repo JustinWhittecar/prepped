@@ -1,7 +1,7 @@
 -- Smoke run: loads Prepped in .toc order against stubbed WoW API calls and real SimGear class data,
 -- fires the load events and prints what the tracker would show. A load check for the glue
 -- (Core.lua, UI.lua), not a test: it catches nil errors and wiring mistakes before the game does.
---   luajit tools/smoke.lua [Class] [RaidReady.lua saved variables, for worn item IDs] [raid]
+--   luajit tools/smoke.lua [Class] [RaidReady.lua saved variables, for worn items and stock] [raid|-] [SPEC]
 local T = dofile("test/lib.lua")
 local class = arg[1] or "Druid"
 local token = class:upper()
@@ -11,6 +11,7 @@ local raidMode = arg[3] == "raid"
 _G.SimGearForeverData = T.simgearGlobal(class)
 local data = SimGearForeverData[token]
 
+local svCons
 -- Worn gear: the "cat" slot list from Raid Ready's sync block, when given.
 local INV = { Head = 1, Neck = 2, Shoulder = 3, Back = 15, Chest = 5, Wrist = 9, Hands = 10, Waist = 6, Legs = 7, Feet = 8,
   ["Finger 1"] = 11, ["Finger 2"] = 12, ["Trinket 1"] = 13, ["Trinket 2"] = 14, ["Main Hand"] = 16, Relic = 18 }
@@ -23,6 +24,7 @@ if svPath then
     if INV[s.slot] and s.id > 0 then worn[INV[s.slot]] = s.id end
   end
   _G.RaidReadyCharDB = { groupSpec = env.RaidReadyCharDB.groupSpec }
+  svCons = sync and sync.cons
 end
 
 -- A frame stub: every method is a no-op unless listed here.
@@ -58,6 +60,8 @@ _G.IsInInstance = function() if raidMode then return true, "raid" end return fal
 _G.GetInventoryItemID = function(_, inv) return worn[inv] end
 _G.GetInventoryItemLink = function(_, inv) return worn[inv] and ("item:" .. worn[inv] .. "::::::::60") end
 local bags = { [13452] = 2, [12820] = 10, [13446] = 5, [20452] = 3 }
+-- Raid Ready's synced counts (bags + bank) replace the made-up ones when given.
+if svCons then bags = {} for _, c in pairs(svCons) do for id, n in pairs(c) do bags[id] = n end end end
 _G.C_Item = {
   GetItemCount = function(id) return bags[id] or 0 end,
   GetItemInfoInstant = function(link)
@@ -106,6 +110,7 @@ end
 fire("ADDON_LOADED", "Prepped")
 runTimers()
 ns.cdb.collapsed = false
+if arg[4] then ns.cdb.groupSpec[1] = arg[4] end
 fire("PLAYER_ENTERING_WORLD")
 runTimers()
 
