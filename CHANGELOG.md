@@ -4,6 +4,12 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 
 ## [Unreleased]
 
+### Added
+- Your picks: choose your own target for any gear slot (a cheaper BoE in place of an expensive one,
+  say). Right-click a row in the slot panel for the best options, or `/prep pick <slot> <item link>`.
+  Readiness, to-dos and set bonuses then count your pick; the slot panel marks it with a lock and
+  still names Prepped's BiS. Kept per character and spec.
+
 ## [0.1.0-beta] - 2026-11-24
 
 The first public beta.

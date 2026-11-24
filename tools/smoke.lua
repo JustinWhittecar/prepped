@@ -323,6 +323,30 @@ local sel = sp.rows[1] and ns.SlotPanel.defaultSlot(sp.rows)
 for _, r in ipairs(sp.rows) do
   if r.inv == sel then for _, l in ipairs(ns.SlotPanel.detail(r)) do print("    " .. l.text) end end
 end
+-- PREPPED_PICKS="7=15062,10=15063": your picks, set the way /prep pick sets them, then the panel again.
+if os.getenv("PREPPED_PICKS") then
+  for inv, id in os.getenv("PREPPED_PICKS"):gmatch("(%d+)=(%d+)") do
+    ns.UI.pick(ns.UI.slotKey(tonumber(inv)) .. " |cff1eff00|Hitem:" .. id .. "::::::::60:::::|h[x]|h|r")
+  end
+  ns.UI.pick("head 999999") -- unknown item: refused
+  ns.UI.pick("legs 13340")  -- wrong slot: refused
+  runTimers()
+  if ns.Core.lastError then print("ERROR: " .. tostring(ns.Core.lastError)) os.exit(1) end
+  v = ns.Core.view
+  print("readiness with picks: " .. string.format("%.1f%%", (v.readiness.pct or 0) * 100))
+  sp = ns.SlotPanel.build(v)
+  for _, r in ipairs(sp.rows) do
+    if r.pinned then
+      print(string.format("  %-9s %-40s %s %s", r.label, r.bisText, r.pctText, r.gainText))
+      for _, l in ipairs(ns.SlotPanel.detail(r)) do print("    " .. l.text) end
+    end
+  end
+  for setID, st in pairs(v.slotData.bis.sets or {}) do print("  set " .. setID .. ": " .. st.count .. " pieces, " .. string.format("%.1f", st.points)) end
+  local list, auto = ns.Core.pickChoices(v.spec, 7, 5)
+  print("pick menu, legs (auto " .. tostring(auto) .. "):")
+  for _, c in ipairs(list) do print(string.format("  %6d %-34s %.0f%%", c.id, c.name, (c.share or 0) * 100)) end
+  ns.UI.pick("")
+end
 -- Sheet sync block (Watch.lua), as sync_sheet.py reads it.
 local sync = ns.cdb.sync
 if not sync then print("ERROR: no sync block written") os.exit(1) end

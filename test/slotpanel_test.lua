@@ -142,4 +142,29 @@ T.eq("help snapshot", SP.badgeHelp("Snapshot 19 Nov"), "SimGear isn't loaded: sc
 T.eq("help estimated", SP.badgeHelp("Estimated weights"),
   "SimGear's weights for this spec are placeholders, not sims: treat the score as rough.")
 
+-- Your pick: the row marks it (⚑, never colour alone) and the detail names Prepped's own BiS
+-- (slotData.auto: Bis.pick without your picks) so you can see what the pick gives up.
+local pick = b(15062, "Devilsaur Leggings", 30)
+pick.locked = true
+local auto = { [7] = b(500, "Stormshroud Pants", 40) }
+local legs = byInv(SP.build({ state = {}, slotData = { bis = { [7] = pick }, auto = auto, worn = { [7] = { id = 8, name = "Old Pants", points = 15 } }, total = 200 } }).rows)[7]
+T.eq("pick marked", legs.pinned, true)
+T.eq("pick text", legs.bisText, "⚑ Devilsaur Leggings")
+T.eq("pct against your pick", legs.pctText, "50%")
+T.eq("Prepped's BiS kept", legs.autoName, "Stormshroud Pants")
+texts = {}
+for i, l in ipairs(SP.detail(legs)) do texts[i] = l.text end
+T.eq("detail pick", table.concat(texts, " | "),
+  "Legs | Worn: Old Pants (50% of your pick) | Your pick: Devilsaur Leggings | Prepped's BiS: Stormshroud Pants | Upgrade: +8% readiness | Source: Source unknown")
+-- Wearing your pick: a star and the pick mark both.
+legs = byInv(SP.build({ state = {}, slotData = { bis = { [7] = pick }, auto = auto, worn = { [7] = { id = 15062, name = "Devilsaur Leggings", points = 30 } }, total = 200 } }).rows)[7]
+T.eq("wearing your pick", legs.bisText, "★ ⚑ Devilsaur Leggings")
+texts = {}
+for i, l in ipairs(SP.detail(legs)) do texts[i] = l.text end
+T.eq("detail wearing pick", texts[2], "Worn: ★ Devilsaur Leggings (your pick)")
+T.eq("detail wearing pick, BiS line", texts[3], "Prepped's BiS: Stormshroud Pants")
+-- A pick that is also Prepped's BiS: no second line.
+legs = byInv(SP.build({ state = {}, slotData = { bis = { [7] = pick }, auto = { [7] = pick }, worn = {}, total = 200 } }).rows)[7]
+T.eq("pick = auto: no BiS name", legs.autoName, nil)
+
 T.done()

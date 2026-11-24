@@ -211,4 +211,74 @@ bis = B.pick({ items = trinkets, weightSet = CAT, unique = { [801] = "Undermine 
 T.eq("best of the group", bis[13] and bis[13].id, 801)
 T.eq("next item outside it", bis[14] and bis[14].id, 803)
 
+-- Your picks (opts.locked = { [inv] = id }): a slot you pin takes that item whatever its score or the
+-- filters, and is marked locked. The pair's other slot takes the best other item; the set pass never
+-- swaps a pinned slot, and pinned set pieces count toward their set's bonus.
+local pinItems = {
+  [901] = item("INVTYPE_LEGS", { Agility = 30 }),                  -- 60, the auto pick
+  [902] = item("INVTYPE_LEGS", { Agility = 20 }, { pvpRank = 10 }), -- 40, filtered out
+  [903] = item("INVTYPE_HAND", { Agility = 25 }),                  -- 50
+  [904] = item("INVTYPE_HAND", { Agility = 10 }),                  -- 20, set piece
+  [905] = item("INVTYPE_LEGS", { Agility = 10 }),                  -- 20, set piece
+  [911] = item("INVTYPE_FINGER", { Agility = 15 }),                -- 30
+  [912] = item("INVTYPE_FINGER", { Agility = 10 }),                -- 20
+  [913] = item("INVTYPE_FINGER", { Agility = 5 }),                 -- 10
+}
+bis = B.pick({ items = pinItems, weightSet = CAT, filters = { pvp = true }, locked = { [7] = 902 } })
+T.eq("pinned legs win over the auto pick", bis[7] and bis[7].id, 902)
+T.eq("pinned even when filtered", bis[7] and bis[7].points, 40)
+T.eq("pinned is marked", bis[7] and bis[7].locked, true)
+T.eq("other slots unchanged", bis[10] and bis[10].id, 903)
+T.eq("unpinned not marked", bis[10] and bis[10].locked, nil)
+bis = B.pick({ items = pinItems, weightSet = CAT, locked = { [11] = 913 } })
+T.eq("pinned ring stays in its slot", bis[11] and bis[11].id, 913)
+T.eq("other ring = best other", bis[12] and bis[12].id, 911)
+bis = B.pick({ items = pinItems, weightSet = CAT, locked = { [12] = 911 } })
+T.eq("pinning the best ring in slot 12", bis[12] and bis[12].id, 911)
+T.eq("slot 11 takes the next", bis[11] and bis[11].id, 912)
+-- An unknown or wrong-slot item is ignored rather than breaking the slot.
+bis = B.pick({ items = pinItems, weightSet = CAT, locked = { [7] = 903, [1] = 99999 } })
+T.eq("wrong-slot pin ignored", bis[7] and bis[7].id, 901)
+-- Sets: the 2-piece bonus (+15) doesn't pay for the auto picks, but pinned pieces still earn it,
+-- and the set pass doesn't swap a pinned slot away.
+local pinSet = { [9] = { items = { [904] = true, [905] = true }, bonuses = { { count = 2, points = 15 } } } }
+bis = B.pick({ items = pinItems, weightSet = CAT, sets = pinSet })
+T.eq("unpinned: no set", bis.sets[9] and bis.sets[9].points or 0, 0)
+bis = B.pick({ items = pinItems, weightSet = CAT, sets = pinSet, locked = { [7] = 905, [10] = 904 } })
+T.eq("pinned set pieces earn the bonus", bis.sets[9] and bis.sets[9].points, 15)
+local swapSet = { [9] = { items = { [904] = true, [905] = true }, bonuses = { { count = 2, points = 500 } } } }
+bis = B.pick({ items = pinItems, weightSet = CAT, sets = swapSet, locked = { [7] = 901 } })
+T.eq("set pass leaves a pinned slot", bis[7] and bis[7].id, 901)
+T.eq("so no half-set swap in hands", bis[10] and bis[10].id, 903)
+bis = B.pick({ items = pinItems, weightSet = CAT, sets = swapSet, locked = { [11] = 913 } })
+T.eq("a pin elsewhere: set pass still swaps legs", bis[7] and bis[7].id, 905)
+T.eq("and hands", bis[10] and bis[10].id, 904)
+
+-- Weapons: a pinned two-hander empties the off hand; a pinned main hand keeps the best off hand.
+local pinWeapons = {
+  [921] = item("INVTYPE_2HWEAPON", { Agility = 50 }),       -- 100
+  [922] = item("INVTYPE_WEAPONMAINHAND", { Agility = 20 }), -- 40
+  [923] = item("INVTYPE_HOLDABLE", { Agility = 10 }),       -- 20
+  [924] = item("INVTYPE_HOLDABLE", { Agility = 5 }),        -- 10
+}
+bis = B.pick({ items = pinWeapons, weightSet = CAT, locked = { [16] = 922 } })
+T.eq("pinned main hand", bis[16] and bis[16].id, 922)
+T.eq("best off hand beside it", bis[17] and bis[17].id, 923)
+bis = B.pick({ items = pinWeapons, weightSet = CAT, locked = { [17] = 924 } })
+T.eq("pinned off hand", bis[17] and bis[17].id, 924)
+T.eq("best main hand beside it", bis[16] and bis[16].id, 922)
+bis = B.pick({ items = pinWeapons, weightSet = CAT, locked = { [16] = 921, [17] = 923 } })
+T.eq("pinned two-hander", bis[16] and bis[16].id, 921)
+T.eq("two-hander drops the off hand pin", bis[17], nil)
+
+-- The choices for one slot, best first, for the pick menu: obtainable under the filters.
+local list = B.candidates({ items = pinItems, weightSet = CAT, filters = { pvp = true } }, 7)
+T.eq("candidates best first", list[1] and list[1].id, 901)
+T.eq("filtered item not offered", #list, 2)
+list = B.candidates({ items = pinWeapons, weightSet = CAT }, 16)
+T.eq("main hand offers two-handers too", list[1] and list[1].id, 921)
+T.eq("and main hands", #list, 2)
+list = B.candidates({ items = pinWeapons, weightSet = CAT }, 17)
+T.eq("off hand offers off hands", list[1] and list[1].id, 923)
+
 T.done()

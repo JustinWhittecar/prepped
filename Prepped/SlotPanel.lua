@@ -12,6 +12,7 @@ SlotPanel.LABEL = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [5] = "Chest",
 
 local LEVEL = 60
 local STAR = "★"
+local PICK = "⚑" -- your pick (SlotPanelUI draws it as a lock)
 local NOT_SCORED = "Not scored by Prepped"
 
 local function pct(x) return math.floor(x * 100 + 0.5) .. "%" end
@@ -71,7 +72,7 @@ local function pairTargets(a, c, bis, worn)
   return out
 end
 
-local function row(inv, target, wornPts, w, total)
+local function row(inv, target, wornPts, w, total, auto)
   local r = { inv = inv, label = SlotPanel.LABEL[inv], gainText = "", pctText = "" }
   if w then r.wornID, r.wornName, r.unread = w.id, w.name, w.unread end
   if not target then
@@ -80,7 +81,9 @@ local function row(inv, target, wornPts, w, total)
   end
   r.bisID, r.bisName = target.id, target.item.name or ("item " .. target.id)
   r.isBis = w ~= nil and w.id == target.id
-  r.bisText = (r.isBis and (STAR .. " ") or "") .. r.bisName
+  r.pinned = target.locked or nil
+  if r.pinned and auto and auto.id ~= target.id then r.autoName = auto.item.name or ("item " .. auto.id) end
+  r.bisText = (r.isBis and (STAR .. " ") or "") .. (r.pinned and (PICK .. " ") or "") .. r.bisName
   r.source = SlotPanel.sourcesText(target.item)
   if w and w.unread then
     r.pctText = NOT_SCORED
@@ -108,7 +111,7 @@ function SlotPanel.build(view)
   if state.level and state.level < LEVEL then out.note = "Prepped activates at 60"; return out end
   local sd = view.slotData
   if not sd then out.note = SlotPanel.badgeHelp(state.badge); return out end
-  local bis, worn, total = sd.bis or {}, sd.worn or {}, sd.total
+  local bis, worn, total, auto = sd.bis or {}, sd.worn or {}, sd.total, sd.auto or {}
   local function pts(inv) return worn[inv] and worn[inv].points or 0 end
   local targets = {}
   for _, inv in ipairs({ 1, 2, 3, 5, 6, 7, 8, 9, 10, 15, 18 }) do targets[inv] = bis[inv] end
@@ -120,13 +123,13 @@ function SlotPanel.build(view)
     local r
     if inv == 16 and twoHand then
       -- Against a two-hander, both worn hands count (as the gear score counts them).
-      r = row(inv, targets[16], pts(16) + pts(17), worn[16], total)
+      r = row(inv, targets[16], pts(16) + pts(17), worn[16], total, auto[16])
       if worn[17] and worn[17].unread then r.unread, r.pct, r.pctText, r.gain, r.gainText = true, nil, NOT_SCORED, nil, "" end
     elseif inv == 17 and twoHand then
       r = row(inv, nil, 0, worn[17], total)
       r.pctText, r.bisText = "", "Two-hander: see main hand"
     else
-      r = row(inv, targets[inv], pts(inv), worn[inv], total)
+      r = row(inv, targets[inv], pts(inv), worn[inv], total, auto[inv])
     end
     out.rows[#out.rows + 1] = r
   end
@@ -147,12 +150,19 @@ end
 function SlotPanel.detail(r)
   local lines = { { kind = "title", text = r.label } }
   local wornName = r.wornName or (r.wornID and ("item " .. r.wornID)) or "nothing"
+  local target = r.pinned and "your pick" or "BiS"
   if r.isBis then
-    lines[#lines + 1] = { kind = "worn", text = "Worn: " .. STAR .. " " .. wornName .. " (BiS)" }
+    lines[#lines + 1] = { kind = "worn", text = "Worn: " .. STAR .. " " .. wornName .. " (" .. target .. ")" }
+    if r.autoName then lines[#lines + 1] = { kind = "bis", text = "Prepped's BiS: " .. r.autoName } end
   else
-    local how = r.unread and NOT_SCORED or (r.pct and (r.pctText .. " of BiS"))
+    local how = r.unread and NOT_SCORED or (r.pct and (r.pctText .. " of " .. target))
     lines[#lines + 1] = { kind = "worn", text = "Worn: " .. wornName .. (how and (" (" .. how .. ")") or "") }
-    lines[#lines + 1] = { kind = "bis", text = r.bisName and ("BiS: " .. r.bisName) or r.bisText }
+    if r.pinned then
+      lines[#lines + 1] = { kind = "bis", text = "Your pick: " .. r.bisName }
+      if r.autoName then lines[#lines + 1] = { kind = "bis", text = "Prepped's BiS: " .. r.autoName } end
+    else
+      lines[#lines + 1] = { kind = "bis", text = r.bisName and ("BiS: " .. r.bisName) or r.bisText }
+    end
     if r.gainText ~= "" then lines[#lines + 1] = { kind = "gain", text = "Upgrade: " .. r.gainText .. " readiness" } end
   end
   if r.source then lines[#lines + 1] = { kind = "source", text = "Source: " .. r.source } end

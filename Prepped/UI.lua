@@ -840,6 +840,8 @@ local function slash(msg)
   elseif msg:match("^harvest") then -- maintainers only, so not in the help line (see Core.harvest)
     local a, b = msg:match("^harvest%s+(%d+)%s+(%d+)")
     Core.harvest(tonumber(a), tonumber(b))
+  elseif msg:match("^pick") then
+    UI.pick(msg:match("^pick%s*(.*)$"))
   elseif msg:match("^weights") then
     UI.weights(msg:match("^weights%s*(.*)$"))
   elseif msg:match("^spec") then
@@ -851,8 +853,48 @@ local function slash(msg)
     Core.settingsChanged()
     Core.print("talent group " .. Core.talentGroup() .. ": " .. (value and (ns.Spec.NAME[value] or value) or "detected from talents"))
   else
-    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep weights [stat value] · /prep buffs test · /prep reset · /prep debug")
+    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep weights [stat value] · /prep pick [slot item|auto] · /prep buffs test · /prep reset · /prep debug")
   end
+end
+
+-- /prep pick names slots like this.
+local SLOT_KEYS = { head = 1, neck = 2, shoulder = 3, chest = 5, waist = 6, legs = 7, feet = 8, wrist = 9, hands = 10,
+  ring1 = 11, ring2 = 12, trinket1 = 13, trinket2 = 14, back = 15, mainhand = 16, offhand = 17, ranged = 18 }
+local KEY_OF = {}
+for k, inv in pairs(SLOT_KEYS) do KEY_OF[inv] = k end
+function UI.slotKey(inv) return KEY_OF[inv] end
+
+-- /prep pick: your picks for the spec. /prep pick <slot> <item link or ID>: pick it; /prep pick <slot>
+-- auto: back to Prepped's BiS. The item must be one Prepped can score for the spec.
+function UI.pick(args)
+  local spec = Core.view and Core.view.spec
+  if not spec then Core.print("no spec to pick for yet"); return end
+  local key, rest = (args or ""):match("^(%S+)%s*(.*)$")
+  if not key then
+    local any = false
+    for inv = 1, 18 do
+      local id = Core.pickFor(spec, inv)
+      if id then
+        any = true
+        Core.print(KEY_OF[inv] .. ": " .. (C_Item.GetItemNameByID(id) or ("item " .. id)))
+      end
+    end
+    if not any then Core.print("no picks: every slot uses Prepped's BiS. Right-click a slot in the character sheet panel to pick.") end
+    return
+  end
+  local inv = SLOT_KEYS[key:lower()]
+  if not inv then Core.print("slots: head neck shoulder back chest wrist hands waist legs feet ring1 ring2 trinket1 trinket2 mainhand offhand ranged"); return end
+  if rest:lower() == "auto" then
+    Core.setPick(spec, inv, nil)
+    Core.print(key .. ": Prepped's BiS")
+    return
+  end
+  local id = tonumber(rest:match("item:(%d+)") or rest:match("^(%d+)$"))
+  if not id then Core.print("/prep pick " .. key .. " <item link or ID>|auto"); return end
+  local ok, why = Core.pickable(spec, inv, id)
+  if not ok then Core.print("can't pick that: " .. why); return end
+  Core.setPick(spec, inv, id)
+  Core.print(key .. ": " .. (C_Item.GetItemNameByID(id) or ("item " .. id)))
 end
 
 local function registerSlash()

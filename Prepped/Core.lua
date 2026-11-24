@@ -31,6 +31,7 @@ local function initDB()
   ns.cdb.consumables = ns.cdb.consumables or {} -- [spec][slot] = item ID or "none"
   ns.cdb.weights = ns.cdb.weights or {} -- [spec] = "simgear" (nil), a preset id or "custom"
   ns.cdb.customWeights = ns.cdb.customWeights or {} -- [spec] = { [stat] = AP units }
+  ns.cdb.picks = ns.cdb.picks or {} -- [spec][inventory slot] = item ID: your pick in place of Prepped's BiS
   -- Moving from Raid Ready: its talent-group choices, once.
   local rr = _G.RaidReadyCharDB
   if not ns.cdb.importedRaidReady and type(rr) == "table" and type(rr.groupSpec) == "table" then
@@ -324,20 +325,73 @@ local function setsFor(set)
   return out
 end
 
-local function bisFor(spec, set)
+local function bisOpts(spec, set)
   local f = ns.cdb.filters
-  local key = set.id .. ":" .. tostring(f.reputation) .. tostring(f.profession) .. tostring(f.pvp) .. tostring(f.darkmoon)
-  if bisCache[key] then return bisCache[key] end
-  local token = classToken()
-  bisCache[key] = ns.Bis.pick({
+  return {
     items = itemsFor(spec), weightSet = set.ws, filters = f,
     tagged = { reputation = Core.data().repTagged or ns.Lists.reputation, profession = Core.data().profTagged or ns.Lists.profession, darkmoon = ns.Lists.darkmoon,
       unavailable = unavailableItems() },
-    dualWield = ns.Spec.canDualWield(spec, token, knows(674), LEVEL, LEVEL),
+    dualWield = ns.Spec.canDualWield(spec, classToken(), knows(674), LEVEL, LEVEL),
     sets = setsFor(set),
     unique = ns.UniqueEquipped,
-  })
+  }
+end
+
+-- BiS with your picks (auto = true: Prepped's own, without them).
+local function bisFor(spec, set, auto)
+  local f = ns.cdb.filters
+  local picks = not auto and ns.cdb.picks[spec] or {}
+  local key = set.id .. ":" .. tostring(f.reputation) .. tostring(f.profession) .. tostring(f.pvp) .. tostring(f.darkmoon)
+  for inv = 1, 18 do if picks[inv] then key = key .. ":" .. inv .. "=" .. picks[inv] end end
+  if bisCache[key] then return bisCache[key] end
+  local opts = bisOpts(spec, set)
+  opts.locked = picks
+  bisCache[key] = ns.Bis.pick(opts)
   return bisCache[key]
+end
+
+-- Your pick for a slot: an item ID, or nil for Prepped's BiS. Rings and trinkets are per slot (11/12,
+-- 13/14). A two-hander in the main hand clears an off hand pick.
+function Core.setPick(spec, inv, id)
+  ns.cdb.picks[spec] = ns.cdb.picks[spec] or {}
+  local p = ns.cdb.picks[spec]
+  p[inv] = id
+  -- One item can't fill both rings or both trinkets.
+  local partner = ({ [11] = 12, [12] = 11, [13] = 14, [14] = 13 })[inv]
+  if partner and id and p[partner] == id then p[partner] = nil end
+  if inv == 16 and id then
+    local item = itemsFor(spec)[id]
+    if item and item.slot == "INVTYPE_2HWEAPON" then p[17] = nil end
+  end
+  if not next(p) then ns.cdb.picks[spec] = nil end
+  Core.changed()
+end
+
+function Core.pickFor(spec, inv) return ns.cdb.picks[spec] and ns.cdb.picks[spec][inv] end
+
+-- The pick menu for a slot: up to n of the best items the filters allow, each { id, name, points,
+-- share = points / Prepped's BiS points }. Also says whether an item can be scored (/prep pick).
+function Core.pickChoices(spec, inv, n)
+  local d = Core.data()
+  local set = d and spec and weightSet(spec)
+  if not set then return nil end
+  local auto = bisFor(spec, set, true)[inv]
+  local top = auto and auto.points or 0
+  local out = {}
+  for i, c in ipairs(ns.Bis.candidates(bisOpts(spec, set), inv)) do
+    if i > (n or 15) then break end
+    out[i] = { id = c.id, name = c.item.name or ("item " .. c.id), points = c.points, share = top > 0 and c.points / top or nil }
+  end
+  return out, auto and auto.id
+end
+
+-- Whether an item is in the spec's scored data and fits the slot (for picks typed with /prep pick).
+function Core.pickable(spec, inv, id)
+  local item = itemsFor(spec)[id]
+  if not item then return false, "Prepped has no data for that item for this spec" end
+  local dualWield = ns.Spec.canDualWield(spec, classToken(), knows(674), LEVEL, LEVEL)
+  if not ns.Bis.fits(item, inv, dualWield) then return false, "that item doesn't go in this slot" end
+  return true
 end
 
 -- For /prep bis and comparisons: each slot's target with its points, and the points of any other
@@ -640,7 +694,7 @@ function Core.compute()
   state.prep, state.todos, state.consumables = r.pct, r.steps, shown
   view.consumableRows = plan.rows
   view.readiness, view.rows, view.set = r, rows, set
-  view.slotData = { bis = bisFor(spec, set), worn = scored, total = gear.bis + ench.bis + plan.bis }
+  view.slotData = { bis = bisFor(spec, set), auto = bisFor(spec, set, true), worn = scored, total = gear.bis + ench.bis + plan.bis }
   if inRaid or (inInstance and kind == "party") then
     local raidPlan, raidShown = consumablePlan(spec, set, true)
     local now = ns.Readiness.compute({ gear = gear, enchants = ench, consumables = { have = raidPlan.have, bis = raidPlan.bis } })

@@ -44,7 +44,27 @@ local function byPoints(a, b) return a.points > b.points end
 
 -- Slots 16 and 17: the best two-hander against the best main hand + off hand pair.
 -- A one-hander goes in the off hand only for a dual wielder, valued as SimGear values an off hand.
-local function pickWeapons(bis, cands, weightSet, dualWield)
+local function offHandOf(c, weightSet)
+  return { id = c.id, item = c.item, points = value(c.id, ns.Score.inOffHand(c.item), weightSet), locked = c.locked }
+end
+
+local function pickWeapons(bis, cands, weightSet, dualWield, pin16, pin17)
+  -- Your picks: a pinned two-hander fills both hands; a pinned hand keeps the best item for the other.
+  if pin16 and pin16.item.slot == "INVTYPE_2HWEAPON" then bis[16] = pin16; return end
+  if pin16 or pin17 then
+    local mainBest, offBest
+    for _, c in ipairs(cands) do
+      local loc = c.item.slot
+      if not pin16 and MAIN_HAND[loc] and c.id ~= (pin17 and pin17.id) and (not mainBest or c.points > mainBest.points) then mainBest = c end
+      if not pin17 and (OFF_HAND[loc] or (dualWield and loc == "INVTYPE_WEAPON")) and c.id ~= (pin16 and pin16.id) then
+        local o = offHandOf(c, weightSet)
+        if not offBest or o.points > offBest.points then offBest = o end
+      end
+    end
+    bis[16] = pin16 or mainBest
+    bis[17] = pin17 and offHandOf(pin17, weightSet) or offBest
+    return
+  end
   local twoHand, mains, offs = nil, {}, {}
   for _, c in ipairs(cands) do
     local loc = c.item.slot
@@ -53,7 +73,7 @@ local function pickWeapons(bis, cands, weightSet, dualWield)
     end
     if MAIN_HAND[loc] then mains[#mains + 1] = c end
     if OFF_HAND[loc] or (dualWield and loc == "INVTYPE_WEAPON") then
-      offs[#offs + 1] = { id = c.id, item = c.item, points = value(c.id, ns.Score.inOffHand(c.item), weightSet) }
+      offs[#offs + 1] = offHandOf(c, weightSet)
     end
   end
   table.sort(mains, byPoints)
@@ -115,7 +135,7 @@ local function applySets(bis, ranked, sets)
       for _, list in pairs(ranked) do
         local slot = #list.slots == 1 and list.slots[1]
         local cur = slot and bis[slot]
-        if slot and not (cur and set.items[cur.id]) then
+        if slot and not (cur and (cur.locked or set.items[cur.id])) then
           for _, c in ipairs(list) do
             if set.items[c.id] then options[#options + 1] = { slot = slot, c = c, loss = (cur and cur.points or 0) - c.points }; break end
           end
@@ -141,13 +161,9 @@ local function applySets(bis, ranked, sets)
   end
 end
 
--- opts: items ({[id] = SimGear item}), weightSet, filters ({pvp, reputation, profession, darkmoon}), tagged,
--- dualWield (the class can use a one-hander in the off hand), unique ({[id] = group}: one per group),
--- sets ({[setID] = {items = {[id] = true},
--- bonuses = {{count, points}}}}: bonuses in the spec's points).
--- Returns {[inventory slot] = { id, item, points }}, plus sets = {[setID] = {count, points}}.
-function Bis.pick(opts)
-  -- Rank candidates per group of slots (chest and robe share slot 5, so group by the slot list).
+-- Candidates ranked per group of slots (chest and robe share slot 5, so grouped by the slot list),
+-- and the weapons, from the items the filters allow.
+local function rank(opts)
   local ranked, weapons = {}, {}
   for id, item in pairs(opts.items) do
     -- No known source: a test item, unreleased raid loot or a Forever item not yet found in game.
@@ -164,23 +180,90 @@ function Bis.pick(opts)
       end
     end
   end
+  for _, list in pairs(ranked) do table.sort(list, byPoints) end
+  return ranked, weapons
+end
+
+-- Whether an item can go in an inventory slot (a one-hander in the off hand only for a dual wielder).
+function Bis.fits(item, inv, dualWield)
+  local loc = item.slot
+  if inv == 16 then return loc == "INVTYPE_2HWEAPON" or MAIN_HAND[loc] or false end
+  if inv == 17 then return OFF_HAND[loc] or (dualWield and loc == "INVTYPE_WEAPON") or false end
+  for _, s in ipairs(SLOTS[loc] or {}) do if s == inv then return true end end
+  return false
+end
+
+local fits = Bis.fits
+
+-- opts.locked ({[inv] = id}): your picks, as candidates marked locked. Any item in opts.items that
+-- fits the slot counts, filtered or not (you chose it); anything else is ignored.
+local function pins(opts)
+  local out = {}
+  for inv, id in pairs(opts.locked or {}) do
+    local item = opts.items[id]
+    if item and fits(item, inv, opts.dualWield) then
+      out[inv] = { id = id, item = item, points = value(id, item, opts.weightSet), locked = true }
+    end
+  end
+  return out
+end
+
+-- The choices for one inventory slot, best first: what the filters allow, for the pick menu.
+-- The main hand lists two-handers too; the off hand is valued as an off hand.
+function Bis.candidates(opts, inv)
+  local ranked, weapons = rank(opts)
+  local out = {}
+  if inv == 16 or inv == 17 then
+    for _, c in ipairs(weapons) do
+      if fits(c.item, inv, opts.dualWield) then out[#out + 1] = inv == 17 and offHandOf(c, opts.weightSet) or c end
+    end
+    table.sort(out, byPoints)
+    return out
+  end
+  for _, list in pairs(ranked) do
+    for _, s in ipairs(list.slots) do
+      if s == inv then for i, c in ipairs(list) do out[i] = c end end
+    end
+  end
+  return out
+end
+
+-- opts: items ({[id] = SimGear item}), weightSet, filters ({pvp, reputation, profession, darkmoon}), tagged,
+-- dualWield (the class can use a one-hander in the off hand), unique ({[id] = group}: one per group),
+-- locked ({[inv] = id}: your picks, which take the slot), sets ({[setID] = {items = {[id] = true},
+-- bonuses = {{count, points}}}}: bonuses in the spec's points).
+-- Returns {[inventory slot] = { id, item, points }}, plus sets = {[setID] = {count, points}}.
+function Bis.pick(opts)
+  local ranked, weapons = rank(opts)
+  local pinned = pins(opts)
   local bis = {}
   for _, list in pairs(ranked) do
-    table.sort(list, byPoints)
     -- A pair of slots takes items of different names (one quest chain gives the same-named
     -- ring at each step, and only one of them can be held) and one item per unique-equipped group.
-    local taken, i = {}, 1
+    -- Pinned slots are filled first and count as taken.
+    local taken, open = {}, {}
+    local function take(slot, c)
+      bis[slot], taken[c.item.name or c.id], taken[c.id] = c, true, true
+      local group = opts.unique and opts.unique[c.id]
+      if group then taken["unique:" .. group] = true end
+    end
+    for _, slot in ipairs(list.slots) do
+      if pinned[slot] then take(slot, pinned[slot]) else open[#open + 1] = slot end
+    end
+    local i = 1
     for _, c in ipairs(list) do
-      local slot = list.slots[i]
+      local slot = open[i]
       if not slot then break end
       local group = opts.unique and opts.unique[c.id]
-      if not taken[c.item.name or c.id] and not (group and taken["unique:" .. group]) then
-        bis[slot], taken[c.item.name or c.id], i = c, true, i + 1
-        if group then taken["unique:" .. group] = true end
+      if not taken[c.id] and not taken[c.item.name or c.id] and not (group and taken["unique:" .. group]) then
+        take(slot, c)
+        i = i + 1
       end
     end
   end
-  pickWeapons(bis, weapons, opts.weightSet, opts.dualWield)
+  -- A pinned slot with no other candidates in its group (a filtered-out item, say).
+  for inv, c in pairs(pinned) do if inv ~= 16 and inv ~= 17 then bis[inv] = c end end
+  pickWeapons(bis, weapons, opts.weightSet, opts.dualWield, pinned[16], pinned[17])
   applySets(bis, ranked, opts.sets)
   return bis
 end

@@ -30,7 +30,9 @@ local function text(parent, size, r, g, b)
   return fs
 end
 
-local function star(s) return (s:gsub("★", STAR_ICON)) end
+-- Your pick shows as a lock (the font may lack ⚑ too).
+local PICK_ICON = "|TInterface\\Buttons\\LockButton-Locked-Up:14:14|t"
+local function star(s) return (s:gsub("★", STAR_ICON):gsub("⚑", PICK_ICON)) end
 
 local function tier(r)
   if r.isBis then return GOLD end
@@ -95,7 +97,8 @@ local function rowTooltip(self)
   if not (r and r.bisID) then return end
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
   GameTooltip:SetItemByID(r.bisID)
-  GameTooltip:AddLine("Prepped's BiS for " .. r.label:lower() .. ". Shift-click: link it.", 0.6, 0.6, 0.6, true)
+  GameTooltip:AddLine((r.pinned and "Your pick" or "Prepped's BiS") .. " for " .. r.label:lower()
+    .. ". Right-click: choose your own. Shift-click: link it.", 0.6, 0.6, 0.6, true)
   GameTooltip:Show()
 end
 
@@ -139,7 +142,7 @@ local function build()
 
   panel.legend = text(panel, 12, 0.7, 0.7, 0.7)
   panel.legend:SetPoint("TOPLEFT", PAD, -PAD - 20)
-  panel.legend:SetText(star("★ wearing BiS · % of BiS · readiness gain"))
+  panel.legend:SetText(star("★ wearing BiS · ⚑ your pick · % of BiS · readiness gain"))
 
   panel.note = text(panel, 12, 0.8, 0.8, 0.8)
   panel.note:SetPoint("TOPLEFT", PAD, -PAD - 42)
@@ -177,7 +180,9 @@ local function build()
     row.name:SetWordWrap(false) -- a long name is cut, the numbers never are
     row:SetScript("OnEnter", rowTooltip)
     row:SetScript("OnLeave", GameTooltip_Hide)
-    row:SetScript("OnClick", function(self)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, button)
+      if button == "RightButton" then SlotPanelUI.pickMenu(self, self.inv); return end
       if IsShiftKeyDown() and self.data and self.data.bisID then
         local _, link = C_Item.GetItemInfo(self.data.bisID)
         if link then ChatEdit_InsertLink(link) end
@@ -194,6 +199,39 @@ local function build()
     fs:SetWordWrap(true) -- sources run long
     panel.detail[i] = fs
   end
+end
+
+-- Your pick for a slot: Prepped's BiS, or one of the best items the filters allow (with its share
+-- of the BiS's points). An item outside the list can be picked with /prep pick <slot> <item link>.
+function SlotPanelUI.pickMenu(owner, inv)
+  local spec = Core.view and Core.view.spec
+  if not spec then return end
+  local list, autoID = Core.pickChoices(spec, inv, 15)
+  if not list then return end
+  if not (MenuUtil and MenuUtil.CreateContextMenu) then
+    Core.print("no menu on this client: use /prep pick " .. ns.UI.slotKey(inv) .. " <item link>|auto")
+    return
+  end
+  local current = Core.pickFor(spec, inv)
+  MenuUtil.CreateContextMenu(owner, function(_, root)
+    root:CreateTitle(SP.LABEL[inv] .. ": your pick")
+    local function choose(id) return function() Core.setPick(spec, inv, id) end end
+    local autoName = autoID and itemName(autoID, "item " .. autoID) or "none"
+    root:CreateRadio("Prepped's BiS (" .. autoName .. ")", function() return current == nil end, choose(nil))
+    local listed = false
+    for _, c in ipairs(list) do
+      if c.id ~= autoID then
+        local share = c.share and string.format(" (%d%%)", math.floor(c.share * 100 + 0.5)) or ""
+        root:CreateRadio(itemName(c.id, c.name) .. share, function() return current == c.id end, choose(c.id))
+      end
+      if c.id == current then listed = true end
+    end
+    if current and not listed then
+      root:CreateRadio(itemName(current, "item " .. current) .. " (typed)", function() return true end, choose(current))
+    end
+    root:CreateDivider()
+    root:CreateTitle("Others: /prep pick " .. ns.UI.slotKey(inv) .. " <item link>")
+  end)
 end
 
 function SlotPanelUI.refresh(view)
