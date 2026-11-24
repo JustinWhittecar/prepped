@@ -146,6 +146,7 @@ _G.GetTime = os.clock
 
 -- Load in .toc order, as the game does.
 local ns = {}
+_G.PREPPED_NS = ns -- for tools that build on this run (tools/bis_audit.lua)
 for l in io.lines("Prepped/Prepped.toc") do
   if not l:match("^#") and l:match("%.lua%s*$") then
     local file = l:gsub("\\", "/"):gsub("%s+$", "")
