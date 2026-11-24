@@ -11,7 +11,7 @@ local P = "|cff33ccffPrepped:|r "
 function Core.print(msg) print(P .. msg) end
 
 -- Saved settings --------------------------------------------------------------------------------
-local DB_DEFAULTS = { showTracker = true, scale = 1, buffsRaid = true, buffsDungeon = false }
+local DB_DEFAULTS = { showTracker = true, scale = 1, buffsRaid = true, buffsDungeon = false, tooltip = true }
 local CHAR_DEFAULTS = { collapsed = true, raidHours = 3 }
 
 local function defaults(t, d)
@@ -520,6 +520,47 @@ local function consumablePlan(spec, set, inRaid)
     if r.max > 0 or r.slot == "potion" or r.unknown then shown[#shown + 1] = r end
   end
   return plan, shown, stock
+end
+
+-- Item tooltips (ItemTooltip.lua) ----------------------------------------------------------------------
+-- A spec's BiS and worn points per slot, its readiness total and a scorer for any item, built the way
+-- Core.compute builds the score. nil when the spec has no weights.
+function Core.specContext(spec)
+  local d = Core.data()
+  local set = d and spec and weightSet(spec)
+  if not set then return nil end
+  local token = classToken()
+  local gear, _, _, worn = gearPart(spec, set)
+  local ench = enchantPart(spec, set, worn)
+  local plan = consumablePlan(spec, set, false)
+  local bis = bisFor(spec, set)
+  local ctx = { spec = spec, token = token, total = gear.bis + ench.bis + plan.bis, bis = {}, bisIDs = {}, worn = {}, wornIDs = {},
+    sets = setsFor(set), bisSets = bis.sets or {}, excluded = ns.Spec.gearRule(spec, token),
+    dualWield = ns.Spec.canDualWield(spec, token, knows(674), LEVEL, LEVEL) }
+  for inv = 1, 18 do
+    if bis[inv] then ctx.bis[inv], ctx.bisIDs[inv] = bis[inv].points, bis[inv].id end
+    local w = worn[inv]
+    if w then
+      ctx.wornIDs[inv] = w.id
+      ctx.worn[inv] = (inv == 17 and w.item) and points(w.id, ns.Score.inOffHand(w.item), set.ws) or points(w.id, w.item, set.ws)
+      if inv == 16 and w.item and w.item.slot == "INVTYPE_2HWEAPON" then ctx.wornTwoHand = true end
+    end
+  end
+  -- An item as the spec scores it: SimGear's record, or the game's stats for a random-suffix roll or an
+  -- item SimGear lacks (as worn items are read). nil when there is nothing to read.
+  function ctx.item(id, link)
+    local item = d.items[id]
+    if item and not (link and ns.Stats.linkSuffix(link)) then return item end
+    local raw = link and GetItemStatsFn and GetItemStatsFn(link)
+    if not (raw and next(raw)) then return nil end
+    local _, _, _, loc = C_Item.GetItemInfoInstant(link)
+    return { name = C_Item.GetItemNameByID(id), slot = loc, stats = ns.Stats.addWeaponDps((ns.Stats.normalize(raw)), loc) }
+  end
+  function ctx.points(id, item, offHand)
+    return points(id, offHand and ns.Score.inOffHand(item) or item, set.ws)
+  end
+  ctx.setBonusAt = ns.Bis.setBonusAt
+  return ctx
 end
 
 -- The whole view ---------------------------------------------------------------------------------------------
