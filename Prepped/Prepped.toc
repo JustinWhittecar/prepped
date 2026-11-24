@@ -23,6 +23,7 @@ data\Lists.lua
 data\Excluded.lua
 data\Attunements.lua
 data\Consumables.lua
+data\ForeverItems.lua
 SimGear.lua
 ForeverItems.lua
 Readiness.lua

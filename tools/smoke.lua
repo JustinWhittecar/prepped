@@ -16,6 +16,13 @@ if os.getenv("PREPPED_SV") then
   setfenv(chunk, env)()
   _G.PreppedCharDB = env.PreppedCharDB
 end
+-- PREPPED_DB=<account Prepped.lua>: that account's settings and harvest.
+if os.getenv("PREPPED_DB") then
+  local env = {}
+  local chunk = assert(loadfile(os.getenv("PREPPED_DB")))
+  setfenv(chunk, env)()
+  _G.PreppedDB = env.PreppedDB
+end
 local data = SimGearForeverData[token]
 
 local svCons
