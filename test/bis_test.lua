@@ -177,4 +177,25 @@ bis = B.pick({ items = setItems, weightSet = CAT, sets = { [7] = { items = SET[7
 T.eq("no swap when it doesn't pay", bis[1] and bis[1].id, 601)
 T.eq("no set bonus", bis.sets and bis.sets[7] and bis.sets[7].points or 0, 0)
 
+-- Two sets wanting the same slot: the better combination wins, and each set reports the pieces it
+-- ends up with, whichever set is looked at first (set IDs swapped below).
+local overlap = {
+  [701] = item("INVTYPE_HEAD", { Agility = 30 }), [702] = item("INVTYPE_HEAD", { Agility = 29 }),  -- 702: set A
+  [703] = item("INVTYPE_CHEST", { Agility = 30 }), [704] = item("INVTYPE_CHEST", { Agility = 29 }), -- 704: set A
+  [705] = item("INVTYPE_CHEST", { Agility = 29 }),                                                  -- 705: set B
+  [706] = item("INVTYPE_LEGS", { Agility = 30 }), [707] = item("INVTYPE_LEGS", { Agility = 29 }),   -- 707: set B
+}
+local A = { items = { [702] = true, [704] = true }, bonuses = { { count = 2, points = 20 } } }
+local Bset = { items = { [705] = true, [707] = true }, bonuses = { { count = 2, points = 50 } } }
+for _, ids in ipairs({ { 1, 2 }, { 2, 1 } }) do
+  local a, b = ids[1], ids[2]
+  bis = B.pick({ items = overlap, weightSet = CAT, sets = { [a] = A, [b] = Bset } })
+  local tag = " (A=" .. a .. ")"
+  T.eq("chest goes to the better set" .. tag, bis[5] and bis[5].id, 705)
+  T.eq("its other piece" .. tag, bis[7] and bis[7].id, 707)
+  T.eq("head keeps the better item" .. tag, bis[1] and bis[1].id, 701)
+  T.eq("better set's bonus" .. tag, bis.sets[b] and bis.sets[b].points, 50)
+  T.eq("other set has no bonus" .. tag, bis.sets[a] and bis.sets[a].points or 0, 0)
+end
+
 T.done()

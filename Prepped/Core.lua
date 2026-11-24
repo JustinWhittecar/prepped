@@ -266,16 +266,15 @@ function Core.resetItems()
   for k in pairs(bisCache) do bisCache[k] = nil end
 end
 -- The class's sets with each bonus in the spec's points (lines Prepped can't read count 0).
+-- The item sets BiS and gear points count for a weight set: SimGear's (its stats and simmed
+-- bonuses), then Forever's harvested ones (data/Overrides.lua borrows SimGear's sims for their procs).
 local function setsFor(set)
-  local out = {}
-  for setID, fs in pairs(Core.foreverSets or {}) do
-    local bonuses = {}
-    for _, line in ipairs(fs.lines) do
-      local stats = ns.ForeverItems.bonusStats(line.text)
-      local pts = stats and ns.Score.value(stats, set.ws) or 0
-      if pts > 0 then bonuses[#bonuses + 1] = { count = line.count, points = pts } end
-    end
-    if #bonuses > 0 then out[setID] = { name = fs.name, items = fs.items, bonuses = bonuses } end
+  local d = Core.data()
+  local value = function(stats) return ns.Score.value(stats, set.ws) end
+  local sims = d and ns.SimGear.setSims(d.setBonusSims, set.raw, set.key)
+  local out = ns.SimGear.setBonuses(d and d.sets, sims, value)
+  for setID, s in pairs(ns.ForeverItems.setBonuses(Core.foreverSets, value, ns.SetBonusSameAs, sims)) do
+    out[setID] = s
   end
   return out
 end

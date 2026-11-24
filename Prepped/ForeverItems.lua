@@ -113,3 +113,24 @@ function ForeverItems.bonusStats(text)
   end
   return nil
 end
+
+-- Forever's sets (Core.foreverSets: { [setID] = { name, items = {[id] = true}, lines = { {count, text} } } })
+-- in Bis's shape: each line worth value(bonusStats) when Prepped can read it; else, where sameAs
+-- names the same bonus on a SimGear set ({ [setID] = { [count] = {set, n} } }), that bonus's simmed
+-- value from sims (SimGear.setSims' result). Lines worth nothing, and sets with none, are left out.
+function ForeverItems.setBonuses(fsets, value, sameAs, sims)
+  local out = {}
+  for setID, fs in pairs(fsets or {}) do
+    local bonuses = {}
+    for _, line in ipairs(fs.lines or {}) do
+      local stats = ForeverItems.bonusStats(line.text)
+      local pts = stats and value(stats) or 0
+      local ref = not stats and sameAs and sameAs[setID] and sameAs[setID][line.count]
+      local sim = ref and sims and sims[ref.set] and sims[ref.set][ref.n]
+      if type(sim) == "table" and type(sim.v) == "number" then pts = sim.v end
+      if pts > 0 then bonuses[#bonuses + 1] = { count = line.count, points = pts } end
+    end
+    if #bonuses > 0 then out[setID] = { name = fs.name, items = fs.items, bonuses = bonuses } end
+  end
+  return out
+end

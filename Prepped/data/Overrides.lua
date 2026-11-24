@@ -17,3 +17,20 @@ ns.EffectOverrides = {
   -- Vigilance Charm: on-use +20% dodge for 20 s or 3 dodges, every 6 min, counted as ~0.5% dodge.
   [18370] = { stats = { Dodge = 0.5 } },
 }
+
+-- Forever's tier 0.5 sets are the classic sets under new IDs, keeping the classic 2-piece (+8 all
+-- resistances) and 4-piece (a proc) word for word, so they borrow SimGear's sims of the classic
+-- set's same bonuses: { [Forever set] = { [pieces] = { set = SimGear set, n = pieces } } }. Texts
+-- compared 2026-11-23 (harvested tooltips vs SimGear's extras); only bonuses SimGear sims get a value.
+local function classic(id) return { [2] = { set = id, n = 2 }, [4] = { set = id, n = 4 } } end
+ns.SetBonusSameAs = {
+  [1667] = classic(513), -- Feralheart Raiment
+  [1669] = classic(515), -- Beastmaster Armor
+  [1671] = classic(517), -- Sorcerer's Regalia
+  [1673] = classic(516), -- Soulforge Armor
+  [1675] = classic(514), -- Vestments of the Virtuous
+  [1676] = classic(512), -- Darkmantle Armor
+  [1679] = classic(519), -- The Five Thunders
+  [1681] = classic(518), -- Deathmist Raiment
+  [1778] = classic(511), -- Battlegear of Heroism
+}

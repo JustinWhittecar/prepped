@@ -49,4 +49,31 @@ for _, cls in ipairs({ "Druid", "Hunter", "Mage", "Paladin", "Priest", "Rogue", 
   T.eq(cls .. " has thousands of items", n > 1000, true)
 end
 
+-- SimGear's item sets in Bis's shape for one weight set: each bonus worth its simmed value where
+-- SimGear sims it (a proc no stat covers), else its stats' value; bonuses worth nothing left out.
+local function value(stats) local v = 0 for k, n in pairs(stats) do v = v + ({ AttackPower = 0.5, SpellPower = 0.1 })[k] * n end return v end
+local bySet = {
+  [184] = { name = "Shadowcraft Armor", items = { 16713, 16711 }, bonuses = {
+    { n = 2, stats = { AttackPower = 40 } }, { n = 4, stats = {}, unscored = true }, { n = 6, stats = {}, unscored = true } } },
+  [144] = { name = "Ironfeather Armor", items = { 15066, 15067 }, bonuses = { { n = 2, stats = { SpellPower = 20 } } } },
+  [65] = { name = "Spider's Kiss", items = { 13218, 13183 }, bonuses = { { n = 2, stats = {}, unscored = true } } },
+}
+local sims = { [184] = { [4] = { v = 9.264, se = 0.27 } } }
+local sets = S.setBonuses(bySet, sims, value)
+T.eq("items as a lookup", sets[184] and sets[184].items[16711], true)
+T.eq("name", sets[184] and sets[184].name, "Shadowcraft Armor")
+T.eq("stat bonus and simmed proc", sets[184] and #sets[184].bonuses, 2)
+T.eq("stat bonus points", sets[184] and sets[184].bonuses[1].points, 20)
+T.eq("simmed bonus points", sets[184] and sets[184].bonuses[2].count, 4)
+T.near("simmed value", sets[184] and sets[184].bonuses[2].points, 9.264)
+T.near("another set's stats", sets[144] and sets[144].bonuses[1].points, 2)
+T.eq("nothing scorable -> no set", sets[65], nil)
+T.eq("no sims for the spec", S.setBonuses(bySet, nil, value)[184] and #S.setBonuses(bySet, nil, value)[184].bonuses, 1)
+-- The sims for a weight set: the level and spec it was simmed on, as SimGear attaches them.
+local raw = { [60] = { meta = {}, FERAL_CAT = sims } }
+T.eq("sims for a sim set", S.setSims(raw, { spec = "FERAL_CAT", source = { kind = "sim", maxLevel = 60 } }, "FERAL_CAT"), sims)
+T.eq("by the list's spec key", S.setSims(raw, { source = { kind = "sim", maxLevel = 60 } }, "FERAL_CAT"), sims)
+T.eq("none for another level", S.setSims(raw, { source = { kind = "sim", maxLevel = 40 } }, "FERAL_CAT"), nil)
+T.eq("none for a non-sim set", S.setSims(raw, { source = { kind = "guide", maxLevel = 60 } }, "FERAL_CAT"), nil)
+
 T.done()

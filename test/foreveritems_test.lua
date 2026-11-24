@@ -82,4 +82,20 @@ T.eq("spell power", sp and sp.SpellPower, 23)
 T.eq("resistances not read", F.bonusStats("+8 All Resistances."), nil)
 T.eq("proc not read", F.bonusStats("Chance on melee attack to restore 20 Energy."), nil)
 
+-- Forever's sets in Bis's shape: each bonus line worth its stats, or, for a line Prepped can't
+-- read, a simmed value borrowed from the same bonus on a SimGear set (sameAs: {[n] = {set, n}}).
+local fsets = { [1667] = { name = "Feralheart Raiment", items = { [226772] = true }, lines = {
+  { count = 2, text = "+8 All Resistances." },
+  { count = 4, text = "Chance on spellcast to restore 200 Mana, on melee attack to regenerate 20 Energy over 5 sec." },
+  { count = 6, text = "+40 Attack Power." } } } }
+local function apValue(stats) return (stats.AttackPower or 0) * 0.25 end
+local out = F.setBonuses(fsets, apValue)
+T.eq("readable bonus only", out[1667] and #out[1667].bonuses, 1)
+T.eq("its points", out[1667] and out[1667].bonuses[1].points, 10)
+out = F.setBonuses(fsets, apValue, { [1667] = { [4] = { set = 513, n = 4 } } }, { [513] = { [4] = { v = 10.6 } } })
+T.eq("borrowed proc counted", out[1667] and #out[1667].bonuses, 2)
+T.near("borrowed value", out[1667] and out[1667].bonuses[1].points, 10.6)
+T.eq("borrowed at its own count", out[1667] and out[1667].bonuses[1].count, 4)
+T.eq("no sim to borrow -> left out", #F.setBonuses(fsets, apValue, { [1667] = { [4] = { set = 513, n = 4 } } }, {})[1667].bonuses, 1)
+
 T.done()

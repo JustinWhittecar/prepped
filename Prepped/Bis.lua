@@ -79,37 +79,65 @@ function Bis.setBonusAt(set, n)
   return v
 end
 
--- Set bonuses: per set, swap single slots to its best piece, cheapest swap first, as far as the
--- bonuses gained outweigh the points lost. Pairs (rings, trinkets) and weapons count when already
--- set pieces but aren't swapped. Records bis.sets[setID] = { count, points }.
+-- A set's pieces among the picks, each item once.
+local function piecesIn(bis, set)
+  local seen, n = {}, 0
+  for slot = 1, 18 do
+    local b = bis[slot]
+    if b and set.items[b.id] and not seen[b.id] then seen[b.id], n = true, n + 1 end
+  end
+  return n
+end
+
+-- The picks' worth: item points plus every set's bonus at the pieces it has.
+local function outfitValue(bis, sets, ids)
+  local v = 0
+  for slot = 1, 18 do if bis[slot] then v = v + (bis[slot].points or 0) end end
+  for _, id in ipairs(ids) do v = v + Bis.setBonusAt(sets[id], piecesIn(bis, sets[id])) end
+  return v
+end
+
+-- Set bonuses: single slots swap to a set's best piece, cheapest first, as far as the whole
+-- outfit (items plus every set's bonuses, so breaking another set counts) gains. The best set's
+-- swaps go in first, then the rest are weighed again, until nothing gains. Pairs (rings, trinkets)
+-- and weapons count when already set pieces but aren't swapped. Records bis.sets[setID] = { count,
+-- points } for each set with a piece in the picks.
 local function applySets(bis, ranked, sets)
   bis.sets = {}
-  for setID, set in pairs(sets or {}) do
-    local have, options = 0, {}
-    for _, list in pairs(ranked) do
-      if #list.slots == 1 then
-        local slot, cur = list.slots[1], bis[list.slots[1]]
-        if cur and set.items[cur.id] then
-          have = have + 1
-        else
+  local ids = {}
+  for id in pairs(sets or {}) do ids[#ids + 1] = id end
+  table.sort(ids, function(x, y) return tostring(x) < tostring(y) end)
+  local current = outfitValue(bis, sets, ids)
+  for _ = 1, #ids do
+    local best
+    for _, setID in ipairs(ids) do
+      local set, options = sets[setID], {}
+      for _, list in pairs(ranked) do
+        local slot = #list.slots == 1 and list.slots[1]
+        local cur = slot and bis[slot]
+        if slot and not (cur and set.items[cur.id]) then
           for _, c in ipairs(list) do
             if set.items[c.id] then options[#options + 1] = { slot = slot, c = c, loss = (cur and cur.points or 0) - c.points }; break end
           end
         end
-      else
-        for _, slot in ipairs(list.slots) do if bis[slot] and set.items[bis[slot].id] then have = have + 1 end end
       end
+      table.sort(options, function(x, y) if x.loss ~= y.loss then return x.loss < y.loss end return x.slot < y.slot end)
+      local saved = {}
+      for j, o in ipairs(options) do
+        saved[j] = bis[o.slot]
+        bis[o.slot] = o.c
+        local v = outfitValue(bis, sets, ids)
+        if v > (best and best.value or current) + 1e-9 then best = { value = v, options = options, n = j } end
+      end
+      for j = #options, 1, -1 do bis[options[j].slot] = saved[j] end
     end
-    for _, slot in ipairs({ 16, 17 }) do if bis[slot] and set.items[bis[slot].id] then have = have + 1 end end
-    table.sort(options, function(a, b) return a.loss < b.loss end)
-    local bestN, bestValue, lost = 0, Bis.setBonusAt(set, have), 0
-    for j, o in ipairs(options) do
-      lost = lost + o.loss
-      local v = Bis.setBonusAt(set, have + j) - lost
-      if v > bestValue then bestN, bestValue = j, v end
-    end
-    for j = 1, bestN do bis[options[j].slot] = options[j].c end
-    bis.sets[setID] = { count = have + bestN, points = Bis.setBonusAt(set, have + bestN) }
+    if not best then break end
+    for j = 1, best.n do bis[best.options[j].slot] = best.options[j].c end
+    current = best.value
+  end
+  for _, setID in ipairs(ids) do
+    local n = piecesIn(bis, sets[setID])
+    if n > 0 then bis.sets[setID] = { count = n, points = Bis.setBonusAt(sets[setID], n) } end
   end
 end
 
