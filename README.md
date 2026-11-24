@@ -39,8 +39,10 @@ loot data for them exists.
 3. Log in. The tracker appears and `/prep` toggles it. The minimap addon menu works too:
    left-click toggles the tracker and right-click opens the options.
 
-<!-- TODO(merge): once the PreppedBackup_<Class> data addons land, say here what they are for and
-     when Prepped uses them instead of SimGear's own data. -->
+The release zip also holds nine small data addons, `PreppedBackup_<Class>`: a snapshot of
+SimGear's level-60 gear data for each class. Prepped loads yours only when SimGear's own data is
+missing or not in the shape it expects, and the tracker badge then reads "Snapshot <date>" instead
+of "SimGear live". Keep them installed; they cost nothing while SimGear works.
 
 ## Commands
 
@@ -186,8 +188,9 @@ weekly (and on demand). It reads the project's files through the CurseForge Core
 `tools/simgear-pin.txt`. The issue's checklist covers the update: diff `Prepped/vendor/SimGear/`,
 rebuild the backup data addons, run the tests and the smoke run, bump the pin, and release.
 
-The backup data addons are built with `tools/build_backup.lua`, which comes from the backup-data
-branch and isn't in this tree yet.
+The backup data addons are rebuilt with `luajit tools/build_backup.lua` (reads the installed
+SimGear, pinned by `PIN` in the script; `--any-version` to override), then `luajit test/backup_test.lua`
+checks that every spec's BiS from the backup matches the live data.
 
 ### Harvesting Forever items
 
