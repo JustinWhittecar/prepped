@@ -193,15 +193,17 @@ local function weightSet(spec)
   local src = raw.source
   local byLevel = src.kind == "sim" and type(d.itemEffects) == "table" and d.itemEffects[src.maxLevel]
   local sims = type(byLevel) == "table" and byLevel[raw.spec or key]
-  local ws = raw
+  local effects = {}
+  for id, v in pairs(raw.effects or {}) do effects[id] = v end
   if type(sims) == "table" then
-    local effects = {}
-    for id, v in pairs(raw.effects or {}) do effects[id] = v end
     for id, e in pairs(sims) do
       if type(e) == "table" and type(e.v) == "number" and effects[id] == nil then effects[id] = e.v end
     end
-    ws = setmetatable({ effects = effects }, { __index = raw })
   end
+  -- Prepped's overrides fill what SimGear doesn't value (data/Overrides.lua).
+  effects = ns.Effects.merge(effects, ns.EffectOverrides, spec, raw.weights or {}, d.items,
+    function(stats) return ns.Score.value(stats, raw) end)
+  local ws = setmetatable({ effects = effects }, { __index = raw })
   setCache[key] = { ws = ws, raw = raw, key = key }
   return setCache[key]
 end

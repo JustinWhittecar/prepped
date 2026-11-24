@@ -26,8 +26,10 @@ data\Consumables.lua
 data\ForeverItems.lua
 data\VendorSources.lua
 data\Sources.lua
+data\Overrides.lua
 SimGear.lua
 ForeverItems.lua
+Effects.lua
 Readiness.lua
 Consumables.lua
 Bis.lua

@@ -166,6 +166,21 @@ if os.getenv("PREPPED_HARVEST") then
     .. " · merged for " .. token .. ": " .. tostring(ns.Core.foreverCount))
 end
 
+-- PREPPED_VENDOR=1: /prep harvest vendor against a stubbed Pix Xizzix window.
+if os.getenv("PREPPED_VENDOR") then
+  local stock = { { id = 272396, cost = 100 }, { id = 272408, cost = 75 }, { id = 19024, gold = 250000 } }
+  _G.GetMerchantNumItems = function() return #stock end
+  _G.GetMerchantItemID = function(i) return stock[i].id end
+  _G.C_MerchantFrame = { GetItemInfo = function(i) return { price = stock[i].gold or 0 } end }
+  _G.GetMerchantItemCostInfo = function(i) return stock[i].cost and 1 or 0 end
+  _G.GetMerchantItemCostItem = function(i) return 134400, stock[i].cost, nil, "Tarnished Undermine Real" end
+  _G.UnitName = function() return "Pix Xizzix" end
+  _G.GetZoneText = function() return "Booty Bay" end
+  ns.Core.harvestVendor()
+  runTimers()
+  for id, cost in pairs(ns.db.vendors["Pix Xizzix"].items) do print("  vendor item " .. id .. ": " .. cost) end
+end
+
 local v = ns.Core.view
 if ns.Core.lastError then print("ERROR: " .. tostring(ns.Core.lastError)) os.exit(1) end
 local t = ns.Tracker.lines(v.state)
