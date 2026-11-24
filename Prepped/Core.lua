@@ -618,7 +618,10 @@ end
 -- items, so without this Prepped never targets them.
 function Core.harvestVendor()
   local n = GetMerchantNumItems and GetMerchantNumItems() or 0
-  if n == 0 then Core.print("harvest vendor: open a vendor's window first"); return end
+  if n == 0 then
+    Core.print("harvest vendor: no vendor items to read (open the vendor's window, then type the command)")
+    return
+  end
   local name = UnitName("npc") or "Vendor"
   local entry = { name = name, zone = GetZoneText and GetZoneText() or nil, items = {} }
   local count = 0

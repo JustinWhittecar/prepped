@@ -595,7 +595,9 @@ local function slash(msg)
   elseif msg == "debug" then
     debug()
   elseif msg == "harvest vendor" then -- maintainers only, like harvest
-    Core.harvestVendor()
+    Core.print("harvest vendor: reading the open vendor window...")
+    local ok, err = pcall(Core.harvestVendor)
+    if not ok then Core.print("harvest vendor failed: " .. tostring(err)) end
   elseif msg:match("^harvest") then -- maintainers only, so not in the help line (see Core.harvest)
     local a, b = msg:match("^harvest%s+(%d+)%s+(%d+)")
     Core.harvest(tonumber(a), tonumber(b))
