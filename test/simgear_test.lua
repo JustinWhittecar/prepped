@@ -6,7 +6,7 @@ local function count(t) local n = 0 for _ in pairs(t or {}) do n = n + 1 end ret
 
 -- The real installed Druid data normalizes into Prepped's shape.
 local global = T.simgearGlobal("Druid")
-print("source: " .. T.SIMGEAR_DIR .. "/SimGearForever_Druid")
+print("source: " .. (T.DATA == "backup" and "PreppedBackup_Druid/Data.lua (snapshot)" or (T.SIMGEAR_DIR .. "/SimGearForever_Druid")))
 local data, why = S.load(global, "DRUID")
 T.eq("loads", why, nil)
 local items = count(data and data.items)

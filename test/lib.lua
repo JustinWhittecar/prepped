@@ -32,7 +32,25 @@ end
 -- Fails closed: a missing install is an error, never a skipped test.
 T.SIMGEAR_DIR = os.getenv("PREPPED_SIMGEAR_DIR")
   or (os.getenv("HOME") .. "/WoW/_forever_/Interface/AddOns")
+-- PREPPED_TEST_DATA=backup: read Prepped's own snapshot (PreppedBackup_<Class>/Data.lua, from this repo)
+-- in place of SimGear's addon, for CI without a CurseForge download. Never a silent fallback: unset,
+-- the tests need SimGear and fail without it.
+T.DATA = os.getenv("PREPPED_TEST_DATA") or "simgear"
+assert(T.DATA == "simgear" or T.DATA == "backup", "PREPPED_TEST_DATA must be simgear or backup, got " .. T.DATA)
+local backupSeen = {}
 function T.simgearGlobal(class) -- class as in the folder name, e.g. "Druid"
+  if T.DATA == "backup" then
+    local path = "PreppedBackup_" .. class .. "/Data.lua"
+    _G.PreppedBackupData = nil
+    assert(loadfile(path), "backup not found at " .. path)("PreppedBackup_" .. class, {})
+    local token = class:upper()
+    local g = assert(_G.PreppedBackupData and _G.PreppedBackupData[token], path .. " has no " .. token)
+    if not backupSeen[class] then
+      backupSeen[class] = true
+      io.stderr:write("test data: " .. path .. " (Prepped's snapshot, not live SimGear)\n")
+    end
+    return { [token] = g }
+  end
   local dir = T.SIMGEAR_DIR .. "/SimGearForever_" .. class .. "/"
   local toc = assert(io.open(dir .. "SimGearForever_" .. class .. ".toc"), "SimGear not found at " .. dir)
   local ns = {}

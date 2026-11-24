@@ -110,24 +110,24 @@ into one zip and leaves out tests, tools and repo files.
 
 The tests need SimGear's class data installed. They read
 `~/WoW/_forever_/Interface/AddOns/SimGearForever_<Class>/`, or the directory in `PREPPED_SIMGEAR_DIR`.
-In CI, `tools/simgear_cf.sh fetch` downloads the version pinned in `tools/simgear-pin.txt`.
+With `PREPPED_TEST_DATA=backup` they read Prepped's own snapshot (`PreppedBackup_<Class>/Data.lua`)
+instead; CI does that, so it needs no CurseForge download key. Run them against the installed
+SimGear before a release.
 
 ### One-time setup
 
 1. Create the GitHub repo and push.
-2. Create the CurseForge project **"Prepped: Forever Raid Readiness (SimGear companion)"**, game
-   World of Warcraft, tagged raid, consumables, attunement, Forever. Create the matching Wago Addons
-   project.
-3. In `Prepped/Prepped.toc`, put the two project IDs in the `X-Curse-Project-ID` and `X-Wago-ID`
-   lines and remove the leading `# ` from both (see the TODO there).
+2. CurseForge project: `preppedforever`, ID 1829038 (in `Prepped/Prepped.toc`). Logo: `art/logo-400.png`.
+3. Wago (optional, not set up yet): create the project, add a `## X-Wago-ID:` line to the .toc and
+   the `WAGO_API_TOKEN` secret.
 4. Add the repository secrets:
-   - `CF_API_KEY`: a CurseForge upload API token (https://legacy.curseforge.com/account/api-tokens).
+   - `CF_API_KEY`: a CurseForge upload API token (https://authors.curseforge.com/#/settings/api-tokens).
      The workflow passes it to the packager as `CF_API_TOKEN`, which replaces the deprecated
      `CF_API_KEY` variable name.
-   - `WAGO_API_TOKEN`: a Wago Addons API token (Wago developer dashboard).
-   - `CF_CORE_API_KEY`: a CurseForge **Core** API key (https://console.curseforge.com). This is a
-     different key from the upload token. The test, release and SimGear-watch workflows use it to
-     read SimGear's files on CurseForge.
+   - `WAGO_API_TOKEN` (only with Wago): a Wago Addons API token (Wago developer dashboard).
+   - `CF_CORE_API_KEY` (optional): a CurseForge **Core** API key (https://console.curseforge.com),
+     a different key from the upload token. Only the SimGear-watch workflow uses it; leave that
+     workflow disabled until the key exists.
 
 ### Release steps
 
