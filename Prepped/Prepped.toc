@@ -38,5 +38,7 @@ Bis.lua
 Attune.lua
 Tracker.lua
 Buffs.lua
+Tooltip.lua
 Core.lua
+ItemTooltip.lua
 UI.lua

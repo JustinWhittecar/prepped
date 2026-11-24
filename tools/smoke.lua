@@ -79,9 +79,12 @@ if svCons then bags = {} for _, c in pairs(svCons) do for id, n in pairs(c) do b
 _G.C_Item = {
   GetItemCount = function(id) return bags[id] or 0 end,
   GetItemInfoInstant = function(link)
-    local id = tonumber(tostring(link):match("item:(%d+)"))
-    local it = data.items.items[id]
-    return id, nil, nil, it and it.slot
+    local id = tonumber(tostring(link):match("item:(%d+)")) or tonumber(link)
+    -- Prepped's merged items (Forever's too) once loaded, then SimGear's, then the tooltip check's extras.
+    local merged = _G.Prepped and _G.Prepped.Core and _G.Prepped.Core.data() and _G.Prepped.Core.data().items
+    local it = (merged and merged[id]) or data.items.items[id]
+    local slot = (it and it.slot) or (C_Item.extraSlots and C_Item.extraSlots[id])
+    return id, nil, nil, slot
   end,
   GetItemNameByID = function(id) local it = data.items.items[id]; return it and it.name end,
   GetItemSpell = function() return nil end,
@@ -104,6 +107,11 @@ _G.UISpecialFrames = {}
 _G.tinsert = table.insert
 _G.C_AddOns = { GetAddOnMetadata = function() return "0.1.0-dev" end, LoadAddOn = function() return true end }
 _G.SlashCmdList = {}
+local tooltipHook
+_G.Enum = { TooltipDataType = { Item = 0 } }
+_G.TooltipDataProcessor = { AddTooltipPostCall = function(_, fn) tooltipHook = fn end }
+local shiftDown = false
+_G.IsShiftKeyDown = function() return shiftDown end
 _G.unpack = unpack
 
 -- Load in .toc order, as the game does.
@@ -207,6 +215,41 @@ SlashCmdList.PREPPED("debug")
 ns.UI.toggleOptions()
 PreppedOptions.scripts.OnShow(PreppedOptions)
 print("options window built")
+
+-- Item tooltip lines through the real hook, for a few items: Forever and SimGear pieces, one SimGear
+-- lacks (a made-up head with no stats: must say "Not scored by Prepped"), and an elixir (no line).
+-- 226792 also as the game would show it to a non-Druid: a leather head with stats and "Classes: Druid".
+C_Item.extraSlots = { [999999] = "INVTYPE_HEAD", [226792] = "INVTYPE_HEAD" }
+_G.LOCALIZED_CLASS_NAMES_MALE = _G.LOCALIZED_CLASS_NAMES_MALE or { DRUID = "Druid", HUNTER = "Hunter", WARRIOR = "Warrior" }
+local statsFor = C_Item.statsFor
+C_Item.statsFor = function(link)
+  if link:match("item:226792:") then return { ITEM_MOD_AGILITY_SHORT = 20, ITEM_MOD_STAMINA_SHORT = 15 } end
+  return statsFor and statsFor(link) or {}
+end
+local function tipFor(id)
+  local out = {}
+  local tip = { GetItem = function() return "item " .. id, "item:" .. id .. "::::::::60" end,
+    AddLine = function(_, text) out[#out + 1] = text end }
+  tooltipHook(tip, { id = id, lines = { { leftText = "item " .. id }, id == 226792 and { leftText = "Classes: Druid" } or nil } })
+  return #out > 0 and table.concat(out, " | ") or "(no line)"
+end
+local other = ns.ItemTooltip.otherSpec(v.spec)
+if not other then
+  for _, s in ipairs(ns.Spec.specsOf(token)) do if s ~= v.spec and ns.Core.weightSetFor(s) then other = s break end end
+  ns.cdb.groupSpec[2] = other
+end
+print("tooltip lines (active " .. tostring(v.spec) .. ", other group " .. tostring(other) .. "):")
+for _, id in ipairs({ 226792, 13340, 15062, 13098, 11815, 999999, 13452 }) do
+  shiftDown = false
+  local plain = tipFor(id)
+  shiftDown = true
+  print(("  %6d %s\n         shift: %s"):format(id, plain, tipFor(id)))
+end
+shiftDown = false
+ns.db.tooltip = false
+print("  tooltip off: " .. tipFor(13340))
+ns.db.tooltip = true
+if ns.Core.lastError then print("ERROR: " .. tostring(ns.Core.lastError)) os.exit(1) end
 
 -- Optional 5th argument: Raid Ready's Data.lua. Prints each slot's Prepped BiS beside Raid Ready's
 -- target for the same spec (cat or bear), both scored in SimGear's units for that spec.
