@@ -364,6 +364,14 @@ local function gearPart(spec, set)
     return points(w.id, w.item, ws)
   end
   local function wears(id) for inv = 1, 18 do if worn[inv] and worn[inv].id == id then return true end end end
+  -- Each worn slot as the score sees it, for the slot panel (unread: no stats to score).
+  local scored = {}
+  for inv = 1, 18 do
+    local w = worn[inv]
+    if w then
+      scored[inv] = { id = w.id, name = (w.item and w.item.name) or C_Item.GetItemNameByID(w.id), points = wp(inv), unread = w.unread }
+    end
+  end
   local have, max, todos, rows = 0, 0, {}, {}
   local function todo(b, gain, inv)
     if gain <= 0 or wears(b.id) then return end
@@ -406,7 +414,7 @@ local function gearPart(spec, set)
     have = have + math.min(ns.Bis.setBonusAt(sets[setID], n), s.points)
     max = max + s.points
   end
-  return { have = have, bis = max }, todos, rows, worn
+  return { have = have, bis = max }, todos, rows, worn, scored
 end
 
 -- Enchants ----------------------------------------------------------------------------------------------
@@ -554,7 +562,7 @@ function Core.compute()
     return view
   end
   state.badge = ns.Score.isPlaceholder(set.ws) and "Estimated weights" or "SimGear live"
-  local gear, gearTodos, rows, worn = gearPart(spec, set)
+  local gear, gearTodos, rows, worn, scored = gearPart(spec, set)
   local ench, enchTodos = enchantPart(spec, set, worn)
   local plan, shown = consumablePlan(spec, set, false)
   local steps = {}
@@ -564,6 +572,7 @@ function Core.compute()
   state.prep, state.todos, state.consumables = r.pct, r.steps, shown
   view.consumableRows = plan.rows
   view.readiness, view.rows, view.set = r, rows, set
+  view.slotData = { bis = bisFor(spec, set), worn = scored, total = gear.bis + ench.bis + plan.bis }
   if inRaid or (inInstance and kind == "party") then
     local raidPlan, raidShown = consumablePlan(spec, set, true)
     local now = ns.Readiness.compute({ gear = gear, enchants = ench, consumables = { have = raidPlan.have, bis = raidPlan.bis } })

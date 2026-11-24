@@ -37,6 +37,8 @@ Consumables.lua
 Bis.lua
 Attune.lua
 Tracker.lua
+SlotPanel.lua
 Buffs.lua
 Core.lua
 UI.lua
+SlotPanelUI.lua
