@@ -113,6 +113,9 @@ _G.TooltipDataProcessor = { AddTooltipPostCall = function(_, fn) tooltipHook = f
 local shiftDown = false
 _G.IsShiftKeyDown = function() return shiftDown end
 _G.unpack = unpack
+-- The character sheet the slot panel docks to (frame stubs, so hooks are no-ops).
+_G.CharacterFrame = CreateFrame("Frame", "CharacterFrame")
+_G.PaperDollFrame = CreateFrame("Frame", "PaperDollFrame")
 
 -- Load in .toc order, as the game does.
 local ns = {}
@@ -250,6 +253,19 @@ ns.db.tooltip = false
 print("  tooltip off: " .. tipFor(13340))
 ns.db.tooltip = true
 if ns.Core.lastError then print("ERROR: " .. tostring(ns.Core.lastError)) os.exit(1) end
+-- Dock and fill the slot panel, as opening the character sheet does, and print its rows.
+fire("PLAYER_LOGIN")
+ns.SlotPanelUI.dock()
+if ns.Core.lastError then print("ERROR: " .. tostring(ns.Core.lastError)) os.exit(1) end
+local sp = ns.SlotPanel.build(v)
+print("slot panel: " .. tostring(sp.badge) .. (sp.note and (" · " .. sp.note) or ""))
+for _, r in ipairs(sp.rows) do
+  print(string.format("  %-9s %-40s %s %s", r.label, r.bisText, r.pctText, r.gainText))
+end
+local sel = sp.rows[1] and ns.SlotPanel.defaultSlot(sp.rows)
+for _, r in ipairs(sp.rows) do
+  if r.inv == sel then for _, l in ipairs(ns.SlotPanel.detail(r)) do print("    " .. l.text) end end
+end
 
 -- Optional 5th argument: Raid Ready's Data.lua. Prints each slot's Prepped BiS beside Raid Ready's
 -- target for the same spec (cat or bear), both scored in SimGear's units for that spec.
