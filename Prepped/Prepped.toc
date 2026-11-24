@@ -39,6 +39,7 @@ data\Sources.lua
 data\Overrides.lua
 data\Weights.lua
 SimGear.lua
+Backup.lua
 ForeverItems.lua
 Effects.lua
 Weights.lua

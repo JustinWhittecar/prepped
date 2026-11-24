@@ -56,8 +56,16 @@ local function headerTooltip(self)
   local badge = v and v.state and v.state.badge
   if badge == "SimGear live" then
     GameTooltip:AddLine("Scores use SimGear Forever's data, read live.", 0.6, 0.6, 0.6, true)
-  elseif badge == "Estimated weights" then
-    GameTooltip:AddLine("SimGear's weights for this spec are placeholders, not sims: treat the score as rough.", 0.6, 0.6, 0.6, true)
+  elseif badge and (badge:find("^Snapshot") or badge:find("Estimated weights")) then
+    local d = Core.data()
+    if d and d.snapshot then
+      GameTooltip:AddLine("SimGear Forever's data couldn't be read (" .. tostring(d.liveProblem) .. "), so scores use the copy of it"
+        .. " Prepped ships" .. (d.snapshot.simgearVersion and (" (SimGear " .. d.snapshot.simgearVersion .. ")") or "")
+        .. ". Updating SimGear may fix it.", 0.6, 0.6, 0.6, true)
+    end
+    if badge:find("Estimated weights") then
+      GameTooltip:AddLine("SimGear's weights for this spec are placeholders, not sims: treat the score as rough.", 0.6, 0.6, 0.6, true)
+    end
   elseif v and v.problem then
     GameTooltip:AddLine("No gear data: " .. tostring(v.problem), 1, 0.4, 0.4, true)
   end
@@ -587,6 +595,10 @@ local function debug()
   local v = Core.view
   local d, problem = Core.data()
   Core.print("class data: " .. (d and "loaded" or ("missing (" .. tostring(problem) .. ")")))
+  if d and d.snapshot then
+    Core.print("from the backup copy: SimGear " .. tostring(d.snapshot.simgearVersion) .. ", built " .. tostring(d.snapshot.built)
+      .. " (live read: " .. tostring(d.liveProblem) .. ")")
+  end
   if v then
     Core.print("spec " .. tostring(v.spec) .. " · talent group " .. Core.talentGroup() .. " · instance " .. tostring(v.instance))
     local r = v.readiness

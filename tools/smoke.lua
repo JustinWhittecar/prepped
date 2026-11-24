@@ -5,7 +5,7 @@
 local T = dofile("test/lib.lua")
 local class = arg[1] or "Druid"
 local token = class:upper()
-local svPath = arg[2]
+local svPath = arg[2] ~= "-" and arg[2] or nil -- "-": none, to reach the later arguments
 local raidMode = arg[3] == "raid"
 
 _G.SimGearForeverData = T.simgearGlobal(class)
@@ -24,6 +24,19 @@ if os.getenv("PREPPED_DB") then
   _G.PreppedDB = env.PreppedDB
 end
 local data = SimGearForeverData[token]
+-- PREPPED_BACKUP=missing (or 1): SimGear's class addon won't load, so Core falls back to the backup
+-- copy (PreppedBackup_<Class>/ in the repo). PREPPED_BACKUP=reshaped: SimGear loads but its weights
+-- aren't where the adapter looks. PREPPED_BACKUP=none: neither loads. The stubs below still read
+-- SimGear's items for names and slots.
+local backupMode = os.getenv("PREPPED_BACKUP")
+if backupMode == "1" then backupMode = "missing" end
+if backupMode == "missing" or backupMode == "none" then _G.SimGearForeverData = nil
+elseif backupMode == "reshaped" then
+  local copy = {}
+  for k, v in pairs(data) do copy[k] = v end
+  copy.weights = { FERAL_CAT = {} }
+  _G.SimGearForeverData = { [token] = copy }
+end
 
 local svCons
 -- Worn gear: the "cat" slot list from Raid Ready's sync block, when given.
@@ -105,7 +118,19 @@ _G.GameTooltip = stub()
 _G.GameTooltip_Hide = function() end
 _G.UISpecialFrames = {}
 _G.tinsert = table.insert
-_G.C_AddOns = { GetAddOnMetadata = function() return "0.1.0-dev" end, LoadAddOn = function() return true end }
+_G.C_AddOns = { GetAddOnMetadata = function() return "0.1.0-dev" end, LoadAddOn = function(name)
+  if (backupMode == "missing" or backupMode == "none") and name:find("^SimGearForever") then return false, "MISSING" end
+  if backupMode == "none" and name:find("^PreppedBackup_") then return false, "DISABLED" end
+  if name:find("^PreppedBackup_") then
+    -- Load it as the game does: its .toc's files, with (addon name, ns).
+    local ns = {}
+    for l in io.lines(name .. "/" .. name .. ".toc") do
+      if not l:match("^#") and l:match("%.lua%s*$") then assert(loadfile(name .. "/" .. l:gsub("%s+$", "")))(name, ns) end
+    end
+    print("loaded " .. name .. " (backup copy)")
+  end
+  return true
+end }
 _G.SlashCmdList = {}
 local tooltipHook
 _G.Enum = { TooltipDataType = { Item = 0 } }
@@ -215,6 +240,14 @@ if v.buffSlots then
   for _, m in ipairs(list) do print("  buff missing: " .. m.item.name .. " (" .. m.bags .. " in bags)") end
 end
 SlashCmdList.PREPPED("debug")
+-- PREPPED_BIS_POINTS=1: each slot's BiS points, for comparing live against the backup (equal items,
+-- such as both sides' PvP sets, tie, and BiS takes either).
+if os.getenv("PREPPED_BIS_POINTS") then
+  for inv = 1, 18 do
+    local row = v.rows and v.rows[inv]
+    if row then print(string.format("bis %2d %8.3f %s", inv, row.bis.points or 0, tostring(row.bis.item.name))) end
+  end
+end
 
 -- Build and fill the options window once, as opening it in game does.
 ns.UI.toggleOptions()

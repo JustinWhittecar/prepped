@@ -87,14 +87,25 @@ function Core.withForeverItems(items, token)
   return ns.ForeverItems.addSources(out, sources)
 end
 
+-- Loads a LoadOnDemand addon unless `global` already has the class. Returns the global, and why the
+-- load failed if it did (DISABLED, MISSING...).
+local function loadFor(addon, globalName, token)
+  local why
+  if not (type(_G[globalName]) == "table" and _G[globalName][token]) and C_AddOns and C_AddOns.LoadAddOn then
+    local ok, loaded, reason = pcall(C_AddOns.LoadAddOn, addon)
+    if ok and not loaded and reason then why = addon .. ": " .. tostring(reason) end
+  end
+  return _G[globalName], why
+end
+
 function Core.data()
   if data or dataProblem then return data, dataProblem end
   local token = classToken()
-  if not (_G.SimGearForeverData and _G.SimGearForeverData[token]) and C_AddOns and C_AddOns.LoadAddOn then
-    local ok, loaded, reason = pcall(C_AddOns.LoadAddOn, classAddon(token))
-    if ok and not loaded and reason then dataProblem = classAddon(token) .. ": " .. tostring(reason) end
-  end
-  local d, why = ns.SimGear.load(_G.SimGearForeverData, token)
+  -- SimGear's data read live; Prepped's snapshot (PreppedBackup_<Class>) only when that fails.
+  local d, why = ns.Backup.choose(token,
+    function() return loadFor(classAddon(token), "SimGearForeverData", token) end,
+    function() return loadFor("PreppedBackup_" .. token:sub(1, 1) .. token:sub(2):lower(), "PreppedBackupData", token) end,
+    ns.SimGear.load)
   if d then
     data, dataProblem = d, nil
     data.items = Core.withForeverItems(d.items, token)
@@ -111,7 +122,7 @@ function Core.data()
     for id, f in pairs(ns.SimGear.repCrafts(data.items, d.reps, d.tradable, ns.Lists.reputation)) do tagged[id] = f end
     data.repTagged, data.wrongSide = tagged, rep.wrongSide
   else
-    dataProblem = dataProblem or why
+    dataProblem = why
   end
   return data, dataProblem
 end
@@ -600,11 +611,17 @@ function Core.compute()
   local d, problem = Core.data()
   local set = d and spec and weightSet(spec)
   if not set then
-    state.badge = d and "No weights for this spec" or "SimGear not installed"
+    state.badge = d and "No weights for this spec" or "No gear data" -- neither SimGear nor the backup loaded
     view.problem = problem
     return view
   end
-  state.badge = ns.Score.isPlaceholder(set.ws) and "Estimated weights" or "SimGear live"
+  -- Backup data says so even when the weights are estimates: both are worth knowing.
+  local estimated = ns.Score.isPlaceholder(set.ws) and "Estimated weights"
+  if d.snapshot then
+    state.badge = ns.Backup.badge(d.snapshot) .. (estimated and (" · " .. estimated) or "")
+  else
+    state.badge = estimated or "SimGear live"
+  end
   local gear, gearTodos, rows, worn, scored = gearPart(spec, set)
   local ench, enchTodos = enchantPart(spec, set, worn)
   local plan, shown = consumablePlan(spec, set, false)
