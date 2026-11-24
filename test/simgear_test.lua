@@ -76,4 +76,38 @@ T.eq("by the list's spec key", S.setSims(raw, { source = { kind = "sim", maxLeve
 T.eq("none for another level", S.setSims(raw, { source = { kind = "sim", maxLevel = 40 } }, "FERAL_CAT"), nil)
 T.eq("none for a non-sim set", S.setSims(raw, { source = { kind = "guide", maxLevel = 60 } }, "FERAL_CAT"), nil)
 
+-- Crafts the reputation filter covers: made from a recipe that needs a reputation (SimGear's reps,
+-- or Prepped's reputation list) and binding on pickup (not in SimGear's tradable list).
+local craftItems = {
+  [1] = { name = "BoP rep craft", sources = { { type = "crafted", recipe = 101 } } },
+  [2] = { name = "BoE rep craft", sources = { { type = "crafted", recipe = 102 } } },
+  [3] = { name = "BoP craft, recipe from a trainer", sources = { { type = "crafted", recipe = 103 } } },
+  [4] = { name = "BoP craft, recipe on Prepped's list", sources = { { type = "crafted", recipe = 104 } } },
+  [5] = { name = "Drop", sources = { { type = "drop" } } },
+}
+local tagged = S.repCrafts(craftItems, { [101] = { 576, 5 }, [102] = { 576, 5 } }, { 2 }, { [104] = 59 })
+T.eq("BoP rep craft tagged", tagged[1], 576)
+T.eq("BoE rep craft not tagged", tagged[2], nil)
+T.eq("trainer recipe not tagged", tagged[3], nil)
+T.eq("recipe on Prepped's list", tagged[4], 59)
+T.eq("drops not tagged", tagged[5], nil)
+T.eq("loads reps and tradable", type(data.reps) == "table" and type(data.tradable) == "table", true)
+
+-- SimGear's reputation items (its reps and factions): each tagged for the reputation filter, given
+-- a source naming the faction and standing (BiS drops items with none), and the other side's
+-- factions marked so they're never targets.
+local reps = { [272059] = { 2798, 4 }, [272200] = { 2799, 5 }, [16000] = { 576, 7 } }
+local factions = { [2798] = { name = "Darkspear Raiders", side = "Horde" }, [2799] = { name = "Theramore Expeditionary Force", side = "Alliance" },
+  [576] = { name = "Timbermaw Hold" } }
+local r = S.repItems(reps, factions, "Alliance")
+T.eq("tagged with its faction", r.tagged[272059], 2798)
+T.eq("neutral faction tagged", r.tagged[16000], 576)
+T.eq("source names faction and standing", r.sources[272200] and r.sources[272200].text, "Theramore Expeditionary Force, Honored")
+T.eq("source kind", r.sources[272200] and r.sources[272200].kind, "reputation")
+T.eq("exalted", r.sources[16000] and r.sources[16000].text, "Timbermaw Hold, Exalted")
+T.eq("other side's faction never a target", r.wrongSide[272059], true)
+T.eq("own side's faction allowed", r.wrongSide[272200], nil)
+T.eq("neutral faction allowed", r.wrongSide[16000], nil)
+T.eq("no side known: nothing ruled out", S.repItems(reps, factions, nil).wrongSide[272059], nil)
+
 T.done()

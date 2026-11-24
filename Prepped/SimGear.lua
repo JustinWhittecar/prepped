@@ -6,7 +6,7 @@ local SimGear = {}
 ns.SimGear = SimGear
 
 -- global: SimGearForeverData; class: "DRUID", "WARRIOR"...
--- Returns { items, specs, enchants, setBonusSims, sets, itemEffects, generated } or nil, reason.
+-- Returns { items, specs, enchants, setBonusSims, sets, reps, factions, tradable, itemEffects, generated } or nil, reason.
 local function isTable(v) return type(v) == "table" end
 
 -- Checks shape, not version numbers: the reason names the first thing that doesn't fit.
@@ -36,6 +36,9 @@ function SimGear.load(global, class)
     enchants = c.enchants,
     setBonusSims = c.setBonusSims,
     sets = isTable(c.extras) and isTable(c.extras.sets) and c.extras.sets or nil,
+    reps = isTable(c.extras) and isTable(c.extras.reps) and c.extras.reps or nil,
+    factions = isTable(c.extras) and isTable(c.extras.factions) and c.extras.factions or nil,
+    tradable = isTable(c.extras) and isTable(c.extras.tradable) and c.extras.tradable or nil,
     itemEffects = c.itemEffects,
     generated = isTable(c.weights.meta) and c.weights.meta.generated or nil,
   }
@@ -70,4 +73,44 @@ function SimGear.setSims(raw, weightSet, key)
   local src = type(weightSet) == "table" and weightSet.source
   local byLevel = type(raw) == "table" and type(src) == "table" and src.kind == "sim" and raw[src.maxLevel]
   return type(byLevel) == "table" and byLevel[weightSet.spec or key] or nil
+end
+
+-- Crafted items that bind on pickup and come from a recipe that needs a reputation: the
+-- reputation filter covers them, since only the player who earned the standing can make them.
+-- items: SimGear's; reps: its { [id] = { faction, rank } }; tradable: its list of IDs that don't
+-- bind on pickup; repList: Prepped's { [id] = faction } (data/Lists.lua). Returns { [id] = faction }.
+function SimGear.repCrafts(items, reps, tradable, repList)
+  local free = {}
+  for _, id in ipairs(tradable or {}) do free[id] = true end
+  local out = {}
+  for id, item in pairs(items or {}) do
+    if not free[id] then
+      for _, src in ipairs(type(item.sources) == "table" and item.sources or {}) do
+        local r = src.type == "crafted" and src.recipe
+        local rep = r and reps and reps[r]
+        local faction = (type(rep) == "table" and rep[1]) or (r and repList and repList[r])
+        if faction then out[id] = faction; break end
+      end
+    end
+  end
+  return out
+end
+
+-- SimGear's reputation items (reps: { [id] = { faction, rank 3-7 } }, factions: { [id] = { name, side } }):
+-- tagged = { [id] = faction } for the reputation filter; sources = { [id] = { kind = "reputation",
+-- text = "Faction, Rank" } } for items with none (ForeverItems.addSources); wrongSide = { [id] = true }
+-- for factions of the other side than `side` ("Alliance"/"Horde"; nil rules nothing out).
+local RANKS = { [3] = "Neutral", [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
+function SimGear.repItems(reps, factions, side)
+  local out = { tagged = {}, sources = {}, wrongSide = {} }
+  for id, r in pairs(reps or {}) do
+    local faction = type(r) == "table" and r[1]
+    if faction then
+      local f = factions and factions[faction] or {}
+      out.tagged[id] = faction
+      out.sources[id] = { kind = "reputation", text = (f.name or ("faction " .. faction)) .. ", " .. (RANKS[r[2]] or "?") }
+      if side and f.side and f.side ~= side then out.wrongSide[id] = true end
+    end
+  end
+  return out
 end

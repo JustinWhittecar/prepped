@@ -34,3 +34,21 @@ ns.SetBonusSameAs = {
   [1681] = classic(518), -- Deathmist Raiment
   [1778] = classic(511), -- Battlegear of Heroism
 }
+
+-- Set bonus sims Prepped doesn't trust, valued by hand instead: { [SimGear set] = { [pieces] = { ap =
+-- { [spec] = attack power equivalent } } } }, turned into points by the spec's AttackPower weight.
+ns.SetBonusOverrides = {
+  -- Stormshroud Armor 3-piece (3% chance on melee hit to restore 18 energy): SimGear sims it at ~44
+  -- points for cat (~200 AP), the same as wowsims; Raid Ready's estimate (2026-11-20) is 80-100 AP,
+  -- below the ~140 AP where three Stormshroud pieces pay. Unverified in game, so the estimate stands.
+  [142] = { [3] = { ap = { FERAL_CAT = 90 } } },
+}
+
+-- Unique-equipped groups: at most one item of each in BiS. { [item] = group }.
+-- "Unique-Equipped: Undermine Trinkets (1)" on all four Pix Xizzix trinkets (seen in game, Raid Ready mocks).
+ns.UniqueEquipped = {
+  [272437] = "Undermine Trinkets", -- Adaptive Combat Assistant
+  [272438] = "Undermine Trinkets", -- Weakness Analyzer
+  [272439] = "Undermine Trinkets", -- Serenity Field
+  [272440] = "Undermine Trinkets", -- Defender's Grip Stabilizer
+}

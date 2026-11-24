@@ -34,3 +34,24 @@ function Effects.merge(simgear, overrides, spec, ws, items, score)
   end
   return out
 end
+
+-- A weight set's set bonus sims ({ [setID] = { [n] = {v} } }, SimGear.setSims' result) with
+-- Prepped's overrides ({ [setID] = { [n] = { ap = {[spec] = AP equivalent} } } }) in place of
+-- SimGear's values for the specs they name. A new table; SimGear's is never written.
+function Effects.setSims(sims, overrides, spec, ws)
+  local out = {}
+  for setID, bonuses in pairs(sims or {}) do
+    out[setID] = {}
+    for n, e in pairs(bonuses) do out[setID][n] = e end
+  end
+  for setID, bonuses in pairs(overrides or {}) do
+    for n, entry in pairs(bonuses) do
+      local ap = entry.ap and entry.ap[spec]
+      if ap then
+        out[setID] = out[setID] or {}
+        out[setID][n] = { v = ap * (ws.AttackPower or 0), override = true }
+      end
+    end
+  end
+  return out
+end

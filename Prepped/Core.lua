@@ -96,6 +96,16 @@ function Core.data()
   if d then
     data, dataProblem = d, nil
     data.items = Core.withForeverItems(d.items, token)
+    -- Reputation items: SimGear's reps give the faction and standing (a source where it has none),
+    -- the other side's factions are never targets, and crafts from reputation recipes that bind
+    -- on pickup join the reputation filter.
+    local rep = ns.SimGear.repItems(d.reps, d.factions, UnitFactionGroup and UnitFactionGroup("player"))
+    data.items = ns.ForeverItems.addSources(data.items, rep.sources)
+    local tagged = {}
+    for id, f in pairs(ns.Lists.reputation or {}) do tagged[id] = f end
+    for id, f in pairs(rep.tagged) do tagged[id] = f end
+    for id, f in pairs(ns.SimGear.repCrafts(data.items, d.reps, d.tradable, ns.Lists.reputation)) do tagged[id] = f end
+    data.repTagged, data.wrongSide = tagged, rep.wrongSide
   else
     dataProblem = dataProblem or why
   end
@@ -110,6 +120,8 @@ local function unavailableItems()
   unavailable = {}
   for id in pairs(ns.Lists.raidOnly or {}) do unavailable[id] = true end
   for id in pairs(ns.Excluded or {}) do unavailable[id] = true end
+  local d = Core.data()
+  for id in pairs(d and d.wrongSide or {}) do unavailable[id] = true end
   return unavailable
 end
 
@@ -261,17 +273,17 @@ local bisCache = {}
 
 -- After a harvest: rebuild the item list and every BiS from it.
 function Core.resetItems()
-  data, dataProblem = nil, nil
+  data, dataProblem, unavailable = nil, nil, nil
   for k in pairs(itemsCache) do itemsCache[k] = nil end
   for k in pairs(bisCache) do bisCache[k] = nil end
 end
--- The class's sets with each bonus in the spec's points (lines Prepped can't read count 0).
 -- The item sets BiS and gear points count for a weight set: SimGear's (its stats and simmed
 -- bonuses), then Forever's harvested ones (data/Overrides.lua borrows SimGear's sims for their procs).
 local function setsFor(set)
   local d = Core.data()
   local value = function(stats) return ns.Score.value(stats, set.ws) end
   local sims = d and ns.SimGear.setSims(d.setBonusSims, set.raw, set.key)
+  sims = ns.Effects.setSims(sims, ns.SetBonusOverrides, set.key, set.raw.weights or {})
   local out = ns.SimGear.setBonuses(d and d.sets, sims, value)
   for setID, s in pairs(ns.ForeverItems.setBonuses(Core.foreverSets, value, ns.SetBonusSameAs, sims)) do
     out[setID] = s
@@ -286,10 +298,11 @@ local function bisFor(spec, set)
   local token = classToken()
   bisCache[key] = ns.Bis.pick({
     items = itemsFor(spec), weightSet = set.ws, filters = f,
-    tagged = { reputation = ns.Lists.reputation, profession = ns.Lists.profession, darkmoon = ns.Lists.darkmoon,
+    tagged = { reputation = Core.data().repTagged or ns.Lists.reputation, profession = ns.Lists.profession, darkmoon = ns.Lists.darkmoon,
       unavailable = unavailableItems() },
     dualWield = ns.Spec.canDualWield(spec, token, knows(674), LEVEL, LEVEL),
     sets = setsFor(set),
+    unique = ns.UniqueEquipped,
   })
   return bisCache[key]
 end

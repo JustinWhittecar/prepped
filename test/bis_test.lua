@@ -198,4 +198,17 @@ for _, ids in ipairs({ { 1, 2 }, { 2, 1 } }) do
   T.eq("other set has no bonus" .. tag, bis.sets[a] and bis.sets[a].points or 0, 0)
 end
 
+-- Unique-equipped groups ("Unique-Equipped: Undermine Trinkets (1)"): a pair of slots takes at most
+-- one item of a group, so the second-best of the group gives way to the next item outside it.
+-- opts.unique: { [id] = group name }.
+local trinkets = {
+  [801] = item("INVTYPE_TRINKET", { Agility = 30 }), [802] = item("INVTYPE_TRINKET", { Agility = 29 }), -- both Undermine
+  [803] = item("INVTYPE_TRINKET", { Agility = 10 }),
+}
+bis = B.pick({ items = trinkets, weightSet = CAT })
+T.eq("without the rule both go in", (bis[13] and bis[13].id or 0) + (bis[14] and bis[14].id or 0), 801 + 802)
+bis = B.pick({ items = trinkets, weightSet = CAT, unique = { [801] = "Undermine Trinkets", [802] = "Undermine Trinkets" } })
+T.eq("best of the group", bis[13] and bis[13].id, 801)
+T.eq("next item outside it", bis[14] and bis[14].id, 803)
+
 T.done()

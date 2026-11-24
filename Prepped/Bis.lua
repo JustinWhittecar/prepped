@@ -142,7 +142,8 @@ local function applySets(bis, ranked, sets)
 end
 
 -- opts: items ({[id] = SimGear item}), weightSet, filters ({pvp, reputation, profession, darkmoon}), tagged,
--- dualWield (the class can use a one-hander in the off hand), sets ({[setID] = {items = {[id] = true},
+-- dualWield (the class can use a one-hander in the off hand), unique ({[id] = group}: one per group),
+-- sets ({[setID] = {items = {[id] = true},
 -- bonuses = {{count, points}}}}: bonuses in the spec's points).
 -- Returns {[inventory slot] = { id, item, points }}, plus sets = {[setID] = {count, points}}.
 function Bis.pick(opts)
@@ -166,14 +167,16 @@ function Bis.pick(opts)
   local bis = {}
   for _, list in pairs(ranked) do
     table.sort(list, byPoints)
-    -- A pair of slots takes items of different names: one quest chain gives the same-named
-    -- ring at each step, and only one of them can be held.
+    -- A pair of slots takes items of different names (one quest chain gives the same-named
+    -- ring at each step, and only one of them can be held) and one item per unique-equipped group.
     local taken, i = {}, 1
     for _, c in ipairs(list) do
       local slot = list.slots[i]
       if not slot then break end
-      if not taken[c.item.name or c.id] then
+      local group = opts.unique and opts.unique[c.id]
+      if not taken[c.item.name or c.id] and not (group and taken["unique:" .. group]) then
         bis[slot], taken[c.item.name or c.id], i = c, true, i + 1
+        if group then taken["unique:" .. group] = true end
       end
     end
   end
