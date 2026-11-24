@@ -136,3 +136,19 @@ function SimGear.otherSide(items, side)
   end
   return out
 end
+
+-- Crafted items that bind on pickup (not in SimGear's tradable list), for the profession filter:
+-- Prepped's cMaNGOS list misses Forever's own crafts. Returns { [id] = true }.
+function SimGear.bopCrafts(items, tradable)
+  local free = {}
+  for _, id in ipairs(tradable or {}) do free[id] = true end
+  local out = {}
+  for id, item in pairs(items or {}) do
+    if not free[id] then
+      for _, src in ipairs(type(item.sources) == "table" and item.sources or {}) do
+        if src.type == "crafted" then out[id] = true; break end
+      end
+    end
+  end
+  return out
+end

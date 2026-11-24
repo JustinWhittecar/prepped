@@ -134,4 +134,15 @@ local pvp = S.otherSide({
 T.eq("Horde barracks vendor ruled out", pvp[16550], true)
 T.eq("Alliance barracks vendor kept", pvp[16451], nil)
 
+-- Crafts that bind on pickup, for the profession filter: crafted and not in SimGear's tradable list.
+-- Forever's own crafts (Legionite Glaive, 250619) are missing from Prepped's cMaNGOS list.
+local bop = S.bopCrafts({
+  [250619] = { name = "Legionite Glaive", sources = { { type = "crafted", recipe = 251471 } } },
+  [252484] = { name = "Timbermaw Tunic", sources = { { type = "crafted", recipe = 252893 } } },
+  [13340] = { name = "Cape of the Black Baron", sources = { { type = "drop" } } },
+}, { 252484 })
+T.eq("BoP craft tagged", bop[250619], true)
+T.eq("tradable craft not tagged", bop[252484], nil)
+T.eq("drop not tagged", bop[13340], nil)
+
 T.done()

@@ -121,6 +121,11 @@ function Core.data()
     for id, f in pairs(rep.tagged) do tagged[id] = f end
     for id, f in pairs(ns.SimGear.repCrafts(data.items, d.reps, d.tradable, ns.Lists.reputation)) do tagged[id] = f end
     data.repTagged, data.wrongSide = tagged, rep.wrongSide
+    -- Crafts that bind on pickup: cMaNGOS's list plus Forever's own crafts SimGear marks BoP.
+    local prof = {}
+    for id in pairs(ns.Lists.profession or {}) do prof[id] = true end
+    for id in pairs(ns.SimGear.bopCrafts(data.items, d.tradable)) do prof[id] = true end
+    data.profTagged = prof
   else
     dataProblem = why
   end
@@ -323,7 +328,7 @@ local function bisFor(spec, set)
   local token = classToken()
   bisCache[key] = ns.Bis.pick({
     items = itemsFor(spec), weightSet = set.ws, filters = f,
-    tagged = { reputation = Core.data().repTagged or ns.Lists.reputation, profession = ns.Lists.profession, darkmoon = ns.Lists.darkmoon,
+    tagged = { reputation = Core.data().repTagged or ns.Lists.reputation, profession = Core.data().profTagged or ns.Lists.profession, darkmoon = ns.Lists.darkmoon,
       unavailable = unavailableItems() },
     dualWield = ns.Spec.canDualWield(spec, token, knows(674), LEVEL, LEVEL),
     sets = setsFor(set),
