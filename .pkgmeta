@@ -25,6 +25,7 @@ ignore:
   - .claude
   - test
   - tools
+  - art
   - run_tests.sh
   - README.md
   - .pkgmeta
