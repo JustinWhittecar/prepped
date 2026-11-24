@@ -72,9 +72,51 @@ local function pickWeapons(bis, cands, weightSet, dualWield)
   end
 end
 
+-- A set's bonus points with n pieces worn.
+function Bis.setBonusAt(set, n)
+  local v = 0
+  for _, b in ipairs(set.bonuses or {}) do if b.count <= n then v = v + b.points end end
+  return v
+end
+
+-- Set bonuses: per set, swap single slots to its best piece, cheapest swap first, as far as the
+-- bonuses gained outweigh the points lost. Pairs (rings, trinkets) and weapons count when already
+-- set pieces but aren't swapped. Records bis.sets[setID] = { count, points }.
+local function applySets(bis, ranked, sets)
+  bis.sets = {}
+  for setID, set in pairs(sets or {}) do
+    local have, options = 0, {}
+    for _, list in pairs(ranked) do
+      if #list.slots == 1 then
+        local slot, cur = list.slots[1], bis[list.slots[1]]
+        if cur and set.items[cur.id] then
+          have = have + 1
+        else
+          for _, c in ipairs(list) do
+            if set.items[c.id] then options[#options + 1] = { slot = slot, c = c, loss = (cur and cur.points or 0) - c.points }; break end
+          end
+        end
+      else
+        for _, slot in ipairs(list.slots) do if bis[slot] and set.items[bis[slot].id] then have = have + 1 end end
+      end
+    end
+    for _, slot in ipairs({ 16, 17 }) do if bis[slot] and set.items[bis[slot].id] then have = have + 1 end end
+    table.sort(options, function(a, b) return a.loss < b.loss end)
+    local bestN, bestValue, lost = 0, Bis.setBonusAt(set, have), 0
+    for j, o in ipairs(options) do
+      lost = lost + o.loss
+      local v = Bis.setBonusAt(set, have + j) - lost
+      if v > bestValue then bestN, bestValue = j, v end
+    end
+    for j = 1, bestN do bis[options[j].slot] = options[j].c end
+    bis.sets[setID] = { count = have + bestN, points = Bis.setBonusAt(set, have + bestN) }
+  end
+end
+
 -- opts: items ({[id] = SimGear item}), weightSet, filters ({pvp, reputation, profession, darkmoon}), tagged,
--- dualWield (the class can use a one-hander in the off hand).
--- Returns {[inventory slot] = { id, item, points }}.
+-- dualWield (the class can use a one-hander in the off hand), sets ({[setID] = {items = {[id] = true},
+-- bonuses = {{count, points}}}}: bonuses in the spec's points).
+-- Returns {[inventory slot] = { id, item, points }}, plus sets = {[setID] = {count, points}}.
 function Bis.pick(opts)
   -- Rank candidates per group of slots (chest and robe share slot 5, so group by the slot list).
   local ranked, weapons = {}, {}
@@ -108,5 +150,6 @@ function Bis.pick(opts)
     end
   end
   pickWeapons(bis, weapons, opts.weightSet, opts.dualWield)
+  applySets(bis, ranked, opts.sets)
   return bis
 end

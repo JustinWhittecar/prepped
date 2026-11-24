@@ -54,6 +54,16 @@ function Core.withForeverItems(items, token)
   for id, r in pairs(ns.ForeverItemData or {}) do records[id] = r end
   local h = ns.db and ns.db.harvest
   for id, r in pairs(h and h.records or {}) do records[id] = r end
+  -- The class's tier 0.5 sets: which items belong and the bonus lines, for Bis.pick's set pass.
+  Core.foreverSets = {}
+  for id, r in pairs(records) do
+    if r.set and r.classes and r.classes[token] then
+      local set = Core.foreverSets[r.set.id] or { name = r.set.name, items = {}, lines = r.set.bonuses or {} }
+      set.items[id] = true
+      if #(r.set.bonuses or {}) > #set.lines then set.lines = r.set.bonuses end
+      Core.foreverSets[r.set.id] = set
+    end
+  end
   local extra = ns.ForeverItems.forClass(records, token, items, function(raw, loc)
     return ns.Stats.addWeaponDps((ns.Stats.normalize(raw)), loc)
   end)
@@ -255,6 +265,21 @@ function Core.resetItems()
   for k in pairs(itemsCache) do itemsCache[k] = nil end
   for k in pairs(bisCache) do bisCache[k] = nil end
 end
+-- The class's sets with each bonus in the spec's points (lines Prepped can't read count 0).
+local function setsFor(set)
+  local out = {}
+  for setID, fs in pairs(Core.foreverSets or {}) do
+    local bonuses = {}
+    for _, line in ipairs(fs.lines) do
+      local stats = ns.ForeverItems.bonusStats(line.text)
+      local pts = stats and ns.Score.value(stats, set.ws) or 0
+      if pts > 0 then bonuses[#bonuses + 1] = { count = line.count, points = pts } end
+    end
+    if #bonuses > 0 then out[setID] = { name = fs.name, items = fs.items, bonuses = bonuses } end
+  end
+  return out
+end
+
 local function bisFor(spec, set)
   local f = ns.cdb.filters
   local key = set.key .. ":" .. tostring(f.reputation) .. tostring(f.profession) .. tostring(f.pvp) .. tostring(f.darkmoon)
@@ -265,6 +290,7 @@ local function bisFor(spec, set)
     tagged = { reputation = ns.Lists.reputation, profession = ns.Lists.profession, darkmoon = ns.Lists.darkmoon,
       unavailable = unavailableItems() },
     dualWield = ns.Spec.canDualWield(spec, token, knows(674), LEVEL, LEVEL),
+    sets = setsFor(set),
   })
   return bisCache[key]
 end
@@ -276,7 +302,15 @@ function Core.bisReport(spec, ids)
   local set = d and weightSet(spec)
   if not set then return nil end
   local out = { slots = {}, items = {} }
-  for inv, b in pairs(bisFor(spec, set)) do out.slots[inv] = { id = b.id, name = b.item.name, points = b.points } end
+  local bis = bisFor(spec, set)
+  for inv, b in pairs(bis) do
+    if type(inv) == "number" then out.slots[inv] = { id = b.id, name = b.item.name, points = b.points } end
+  end
+  out.sets = {}
+  local sets = setsFor(set)
+  for setID, s in pairs(bis.sets or {}) do
+    out.sets[setID] = { name = sets[setID] and sets[setID].name, count = s.count, points = s.points }
+  end
   for _, id in ipairs(ids or {}) do
     local item = d.items[id]
     out.items[id] = item and { name = item.name, slot = item.slot, points = points(id, item, set.ws) } or false
@@ -337,6 +371,14 @@ local function gearPart(spec, set)
   else
     if b16 then todo(b16, b16.points - math.min(wp(16), b16.points), 16) end
     if b17 then todo(b17, b17.points - math.min(wp(17), b17.points), 17) end
+  end
+  -- Set bonuses: BiS's count toward the maximum, the pieces you wear toward what you have.
+  local sets = setsFor(set)
+  for setID, s in pairs(bis.sets or {}) do
+    local n = 0
+    for inv = 1, 18 do if worn[inv] and sets[setID].items[worn[inv].id] then n = n + 1 end end
+    have = have + math.min(ns.Bis.setBonusAt(sets[setID], n), s.points)
+    max = max + s.points
   end
   return { have = have, bis = max }, todos, rows, worn
 end

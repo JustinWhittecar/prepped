@@ -73,4 +73,13 @@ T.eq("count", bonuses and bonuses[2].count, 4)
 T.eq("text", bonuses and bonuses[2].text, "Increases your chance to dodge by 1%.")
 T.eq("no set", F.setBonusesFrom({ "Cloak of Warding", "Binds when picked up" }), nil)
 
+-- A bonus line as SimGear stats; nil for one Prepped can't read (procs, resistances).
+T.eq("attack power", F.bonusStats("+40 Attack Power.") and F.bonusStats("+40 Attack Power.").AttackPower, 40)
+T.eq("strength", F.bonusStats("+20 Strength.") and F.bonusStats("+20 Strength.").Strength, 20)
+T.eq("mana regen", F.bonusStats("Restores 8 mana per 5 sec.") and F.bonusStats("Restores 8 mana per 5 sec.").Mp5, 8)
+local sp = F.bonusStats("Increases damage and healing done by magical spells and effects by up to 23.")
+T.eq("spell power", sp and sp.SpellPower, 23)
+T.eq("resistances not read", F.bonusStats("+8 All Resistances."), nil)
+T.eq("proc not read", F.bonusStats("Chance on melee attack to restore 20 Energy."), nil)
+
 T.done()

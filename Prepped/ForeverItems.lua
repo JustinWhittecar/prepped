@@ -96,3 +96,20 @@ function ForeverItems.setBonusesFrom(lines)
   end
   return out
 end
+
+-- A set bonus line as SimGear stats, or nil when Prepped can't read it (procs, resistances): those
+-- count as nothing, like an unsimmed trinket.
+local BONUS = {
+  { "^%+(%d+) Attack Power", "AttackPower" },
+  { "^%+(%d+) Strength", "Strength" }, { "^%+(%d+) Agility", "Agility" }, { "^%+(%d+) Stamina", "Stamina" },
+  { "^%+(%d+) Intellect", "Intellect" }, { "^%+(%d+) Spirit", "Spirit" }, { "^%+(%d+) Armor", "Armor" },
+  { "^Restores (%d+) mana per 5 sec", "Mp5" },
+  { "^Increases damage and healing done by magical spells and effects by up to (%d+)", "SpellPower" },
+}
+function ForeverItems.bonusStats(text)
+  for _, b in ipairs(BONUS) do
+    local n = text:match(b[1])
+    if n then return { [b[2]] = tonumber(n) } end
+  end
+  return nil
+end

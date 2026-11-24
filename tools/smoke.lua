@@ -220,6 +220,7 @@ if arg[5] then
   local INVS = { head = { 1 }, neck = { 2 }, shoulder = { 3 }, back = { 15 }, chest = { 5 }, wrist = { 9 }, hands = { 10 },
     waist = { 6 }, legs = { 7 }, feet = { 8 }, finger = { 11, 12 }, trinket = { 13, 14 }, mainhand = { 16 }, relic = { 18 } }
   local order = { "head", "neck", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet", "finger", "trinket", "mainhand", "relic" }
+  for _, s in pairs(rep.sets or {}) do print(("set: %s, %d pieces, bonus %.1f"):format(tostring(s.name), s.count, s.points)) end
   print(("\n%-9s %-38s %6s | %-34s %6s"):format("slot", "Prepped BiS", "pts", "Raid Ready", "pts"))
   for _, slot in ipairs(order) do
     for k, inv in ipairs(INVS[slot]) do

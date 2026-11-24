@@ -154,4 +154,27 @@ for _, spec in ipairs({ "FERAL_CAT", "FERAL_BEAR" }) do
   T.eq(spec .. ": filtered picks", table.concat(bad, ", "), "")
 end
 
+-- Set bonuses: pieces of a set swap in where the bonuses they complete outweigh what the swaps
+-- lose. opts.sets: { [setID] = { items = {[id] = true}, bonuses = { {count, points} } } }.
+local SET = { [7] = { items = { [602] = true, [604] = true, [606] = true }, bonuses = { { count = 2, points = 15 }, { count = 3, points = 100 } } } }
+local setItems = {
+  [601] = item("INVTYPE_HEAD", { Agility = 30 }),  -- 60
+  [602] = item("INVTYPE_HEAD", { Agility = 25 }),  -- 50, set: loses 10
+  [603] = item("INVTYPE_HAND", { Agility = 20 }),  -- 40
+  [604] = item("INVTYPE_HAND", { Agility = 12 }),  -- 24, set: loses 16
+  [605] = item("INVTYPE_FEET", { Agility = 20 }),  -- 40
+  [606] = item("INVTYPE_FEET", { Agility = 15 }),  -- 30, set: loses 10
+}
+-- 2 pieces: +15 for a loss of 20, not worth it; 3 pieces: +100 for a loss of 36, worth it.
+bis = B.pick({ items = setItems, weightSet = CAT, sets = SET })
+T.eq("set head", bis[1] and bis[1].id, 602)
+T.eq("set hands", bis[10] and bis[10].id, 604)
+T.eq("set feet", bis[8] and bis[8].id, 606)
+T.eq("bonus reported", bis.sets and bis.sets[7] and bis.sets[7].points, 115)
+T.eq("pieces reported", bis.sets and bis.sets[7] and bis.sets[7].count, 3)
+-- Only the 2-piece bonus on offer: the swaps cost more than it gives, so nothing changes.
+bis = B.pick({ items = setItems, weightSet = CAT, sets = { [7] = { items = SET[7].items, bonuses = { { count = 2, points = 15 } } } } })
+T.eq("no swap when it doesn't pay", bis[1] and bis[1].id, 601)
+T.eq("no set bonus", bis.sets and bis.sets[7] and bis.sets[7].points or 0, 0)
+
 T.done()
