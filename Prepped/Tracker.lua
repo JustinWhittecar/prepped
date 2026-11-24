@@ -36,7 +36,7 @@ end
 local function addConsumables(lines, slots)
   for _, c in ipairs(slots or {}) do
     if c.item and not c.unknown and c.have < c.need then
-      lines[#lines + 1] = { kind = "consumable", text = c.item.name .. " " .. c.have .. "/" .. c.need }
+      lines[#lines + 1] = { kind = "consumable", text = c.item.name .. " " .. c.have .. "/" .. c.need, itemID = c.item.id }
     end
   end
 end
@@ -52,7 +52,7 @@ end
 local function addGear(lines, todos)
   for i, t in ipairs(todos or {}) do
     if i > MAX_GEAR then return end
-    lines[#lines + 1] = { kind = "gear", text = t.label .. " (" .. gainText(t.gain) .. ")" }
+    lines[#lines + 1] = { kind = "gear", text = t.label .. " (" .. gainText(t.gain) .. ")", itemID = t.id }
   end
 end
 

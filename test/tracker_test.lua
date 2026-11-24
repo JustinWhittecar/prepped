@@ -44,6 +44,13 @@ local todos = { { label = "Superior Agility on bracers", gain = 0.03 }, { label 
 v = Tr.lines({ level = 60, prep = 0.5, consumables = cons, todos = todos })
 T.eq("consumables then gear", texts(v), "Elixir of the Mongoose 1/3 | Superior Agility on bracers (+3%) | Hand of Justice (+<1%)")
 T.eq("gear kind", v.lines[2].kind, "gear")
+
+-- A line about an item carries its ID, so hovering it can show the item's tooltip.
+v = Tr.lines({ level = 60, prep = 0.5, consumables = { { slot = "buff", item = { id = 13452, name = "Elixir of the Mongoose" }, have = 1, need = 3 } },
+  todos = { { label = "Hand of Justice", gain = 0.01, id = 11815 }, { label = "Crusader on weapon", gain = 0.02 } } })
+T.eq("consumable item id", v.lines[1].itemID, 13452)
+T.eq("gear item id", v.lines[2].itemID, 11815)
+T.eq("enchant line has none", v.lines[3].itemID, nil)
 local ten = {}
 for i = 1, 10 do ten[i] = { label = "Item " .. i, gain = 0.01 } end
 v = Tr.lines({ level = 60, prep = 0.5, todos = ten })

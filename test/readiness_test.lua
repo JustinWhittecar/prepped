@@ -29,11 +29,13 @@ r = R.compute({
 }, {
   { label = "Elixir of the Mongoose", gain = 3 },
   { label = "Superior Agility on bracers", gain = 4.5 },
+  { label = "Hand of Justice", gain = 1, id = 11815 },
 })
 T.eq("biggest next step", r.next.label, "Superior Agility on bracers")
 T.near("its gain in %", r.next.gain, 0.03) -- 4.5 of 150 BiS points
 T.eq("steps ordered", r.steps[2].label, "Elixir of the Mongoose")
 T.near("second gain in %", r.steps[2].gain, 0.02)
+T.eq("a step keeps its item id", r.steps[3].id, 11815)
 
 -- A part with nothing at BiS (no data, or no slots for the spec) has no share, never NaN.
 r = R.compute({

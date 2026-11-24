@@ -109,6 +109,19 @@ local function line(i)
     l = text(tracker, 12)
     l:SetWidth(WIDTH - 16)
     l:SetWordWrap(true) -- a long blocker line wraps instead of being cut off
+    -- A hover area over the line: a line about an item shows that item's tooltip.
+    local hit = CreateFrame("Frame", nil, tracker)
+    hit:SetAllPoints(l)
+    hit:SetScript("OnEnter", function(self)
+      if not self.itemID then return end
+      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+      GameTooltip:SetItemByID(self.itemID)
+      GameTooltip:Show()
+    end)
+    hit:SetScript("OnLeave", GameTooltip_Hide)
+    -- Clicks and drags still reach the tracker underneath, so it moves from any line.
+    if hit.SetPropagateMouseClicks then hit:SetPropagateMouseClicks(true) end
+    l.hit = hit
     tracker.lines[i] = l
   end
   return l
@@ -133,7 +146,7 @@ function UI.refreshTracker(view)
   view.state.collapsed = ns.cdb.collapsed
   local t = ns.Tracker.lines(view.state)
   tracker.title:SetText(t.header)
-  for _, l in ipairs(tracker.lines) do l:Hide() end
+  for _, l in ipairs(tracker.lines) do l:Hide(); l.hit:Hide() end
   for _, b in ipairs(tracker.buttons) do b:Hide() end
   local y, bi = -26, 0
   for i, l in ipairs(t.lines) do
@@ -141,6 +154,9 @@ function UI.refreshTracker(view)
     local c = COLORS[l.kind] or COLORS.gear
     fs:SetTextColor(c[1], c[2], c[3])
     fs:SetText(l.text)
+    fs.hit.itemID = l.itemID
+    fs.hit:EnableMouse(l.itemID ~= nil) -- only item lines catch the mouse
+    fs.hit:Show()
     fs:ClearAllPoints()
     fs:SetPoint("TOPLEFT", 8, y)
     fs:Show()

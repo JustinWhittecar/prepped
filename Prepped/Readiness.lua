@@ -6,7 +6,7 @@ ns.Readiness = Readiness
 
 local PARTS = { "gear", "enchants", "consumables" }
 
--- steps: optional list of { label, gain } with gain in score points.
+-- steps: optional list of { label, gain, id? } with gain in score points (id: the item, if any).
 function Readiness.compute(parts, steps)
   local result, have, bis = {}, 0, 0
   for _, name in ipairs(PARTS) do
@@ -21,7 +21,7 @@ function Readiness.compute(parts, steps)
   result.pct = have / bis
 
   for i, s in ipairs(steps or {}) do
-    result.steps[i] = { label = s.label, gain = s.gain / bis }
+    result.steps[i] = { label = s.label, gain = s.gain / bis, id = s.id }
   end
   table.sort(result.steps, function(a, b) return a.gain > b.gain end)
   result.next = result.steps[1]
