@@ -594,6 +594,9 @@ local function slash(msg)
     UI.resetPositions()
   elseif msg == "debug" then
     debug()
+  elseif msg:match("^harvest") then
+    local a, b = msg:match("^harvest%s+(%d+)%s+(%d+)")
+    Core.harvest(tonumber(a), tonumber(b))
   elseif msg:match("^spec") then
     local arg = msg:match("^spec%s+(%S+)")
     local token = select(2, UnitClass("player"))
@@ -603,7 +606,7 @@ local function slash(msg)
     Core.settingsChanged()
     Core.print("talent group " .. Core.talentGroup() .. ": " .. (value and (ns.Spec.NAME[value] or value) or "detected from talents"))
   else
-    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep buffs test · /prep reset · /prep debug")
+    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep buffs test · /prep reset · /prep debug · /prep harvest [from to]")
   end
 end
 

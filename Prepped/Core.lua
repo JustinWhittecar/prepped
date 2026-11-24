@@ -46,6 +46,26 @@ local function classAddon(token) return "SimGearForever_" .. token:sub(1, 1) .. 
 
 local data, dataProblem
 -- SimGear's class data, loading its LoadOnDemand addon if nothing has yet. Returns data or nil, reason.
+-- SimGear's items plus the Forever items it can't see (ForeverItems.lua): those Prepped keeps in
+-- data/ForeverItems.lua and those harvested on this account (/prep harvest), the harvest winning.
+-- A new table, so SimGear's own stays untouched.
+function Core.withForeverItems(items, token)
+  local records = {}
+  for id, r in pairs(ns.ForeverItemData or {}) do records[id] = r end
+  local h = ns.db and ns.db.harvest
+  for id, r in pairs(h and h.records or {}) do records[id] = r end
+  local extra = ns.ForeverItems.forClass(records, token, items, function(raw, loc)
+    return ns.Stats.addWeaponDps((ns.Stats.normalize(raw)), loc)
+  end)
+  if not next(extra) then return items end
+  local out = {}
+  for id, item in pairs(items) do out[id] = item end
+  for id, item in pairs(extra) do out[id] = item end
+  Core.foreverCount = 0
+  for _ in pairs(extra) do Core.foreverCount = Core.foreverCount + 1 end
+  return out
+end
+
 function Core.data()
   if data or dataProblem then return data, dataProblem end
   local token = classToken()
@@ -54,7 +74,12 @@ function Core.data()
     if ok and not loaded and reason then dataProblem = classAddon(token) .. ": " .. tostring(reason) end
   end
   local d, why = ns.SimGear.load(_G.SimGearForeverData, token)
-  if d then data, dataProblem = d, nil else dataProblem = dataProblem or why end
+  if d then
+    data, dataProblem = d, nil
+    data.items = Core.withForeverItems(d.items, token)
+  else
+    dataProblem = dataProblem or why
+  end
   return data, dataProblem
 end
 
@@ -212,6 +237,13 @@ local function itemsFor(spec)
 end
 
 local bisCache = {}
+
+-- After a harvest: rebuild the item list and every BiS from it.
+function Core.resetItems()
+  data, dataProblem = nil, nil
+  for k in pairs(itemsCache) do itemsCache[k] = nil end
+  for k in pairs(bisCache) do bisCache[k] = nil end
+end
 local function bisFor(spec, set)
   local f = ns.cdb.filters
   local key = set.key .. ":" .. tostring(f.reputation) .. tostring(f.profession) .. tostring(f.pvp) .. tostring(f.darkmoon)
@@ -507,3 +539,65 @@ end)
 
 -- Settings that change BiS call this.
 function Core.settingsChanged() Core.changed(true) end
+
+
+-- /prep harvest [from to]: asks the game about every item ID in a range (by default the tier 0.5
+-- sets, 226700-226900) and saves what comes back to PreppedDB.harvest. Forever sends these items
+-- from the server, so the game is the only source. Saved on /reload, used from then on.
+local HARVEST_FROM, HARVEST_TO = 226700, 226900
+local IN_FLIGHT, TICK, PATIENCE = 40, 0.2, 25 -- PATIENCE ticks without an answer = no such item
+
+function Core.harvest(from, to)
+  if Core.harvesting then Core.print("harvest already running"); return end
+  from, to = from or HARVEST_FROM, to or HARVEST_TO
+  if to < from or to - from > 20000 then Core.print("harvest: give a range of at most 20000 IDs"); return end
+  local tokens = {}
+  for token, name in pairs(LOCALIZED_CLASS_NAMES_MALE or {}) do tokens[name] = token end
+  for token, name in pairs(LOCALIZED_CLASS_NAMES_FEMALE or {}) do tokens[name] = token end
+  ns.db.harvest = ns.db.harvest or { records = {} }
+  local h = ns.db.harvest
+  h.records = h.records or {}
+  h.build = select(1, GetBuildInfo())
+  h.ranges = h.ranges or {}
+  h.ranges[#h.ranges + 1] = from .. "-" .. to
+  local nextID, waiting, found, none = from, {}, 0, 0
+  Core.harvesting = true
+  Core.print(("harvest: asking the game about items %d-%d..."):format(from, to))
+  local function tooltipLines(id)
+    local ok, t = pcall(C_TooltipInfo.GetItemByID, id)
+    local lines = {}
+    if ok and t and t.lines then for _, l in ipairs(t.lines) do lines[#lines + 1] = l.leftText end end
+    return lines
+  end
+  local ticker
+  ticker = C_Timer.NewTicker(TICK, function()
+    while nextID <= to and #waiting < IN_FLIGHT do
+      pcall(C_Item.RequestLoadItemDataByID, nextID)
+      waiting[#waiting + 1] = { id = nextID, ticks = 0 }
+      nextID = nextID + 1
+    end
+    for i = #waiting, 1, -1 do
+      local w = waiting[i]
+      w.ticks = w.ticks + 1
+      local name, link, quality, itemLevel, minLevel, _, _, _, equipLoc = C_Item.GetItemInfo(w.id)
+      if name and link then
+        local raw = GetItemStatsFn and GetItemStatsFn(link) or {}
+        local classes = ns.ForeverItems.classesFrom(tooltipLines(w.id), tokens)
+        h.records[w.id] = ns.ForeverItems.record({ name = name, quality = quality, itemLevel = itemLevel,
+          minLevel = minLevel, equipLoc = equipLoc }, raw, classes)
+        found = found + 1
+        table.remove(waiting, i)
+      elseif w.ticks >= PATIENCE then
+        none = none + 1
+        table.remove(waiting, i)
+      end
+    end
+    if nextID > to and #waiting == 0 then
+      ticker:Cancel()
+      Core.harvesting = false
+      Core.resetItems()
+      Core.changed(true)
+      Core.print(("harvest done: %d items, %d IDs with nothing. In use now; /reload to save them."):format(found, none))
+    end
+  end)
+end

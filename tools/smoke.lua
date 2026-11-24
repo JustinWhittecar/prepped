@@ -78,7 +78,7 @@ _G.C_Item = {
   end,
   GetItemNameByID = function(id) local it = data.items.items[id]; return it and it.name end,
   GetItemSpell = function() return nil end,
-  GetItemStats = function() return {} end,
+  GetItemStats = function(link) return C_Item.statsFor and C_Item.statsFor(link) or {} end,
   GetItemIconByID = function() return 134400 end,
 }
 _G.IsEquippedItem = function(id) for _, w in pairs(worn) do if w == id then return true end end return false end
@@ -120,6 +120,44 @@ ns.cdb.collapsed = false
 if arg[4] then ns.cdb.groupSpec[1] = arg[4] end
 fire("PLAYER_ENTERING_WORLD")
 runTimers()
+
+-- PREPPED_HARVEST=1: run /prep harvest over the Feralheart IDs against a stubbed game that answers
+-- with Raid Ready's stats for them (plus a guessed 150 base armor), then recompute.
+if os.getenv("PREPPED_HARVEST") then
+  local RR = {}
+  assert(loadfile(os.getenv("HOME") .. "/raid-ready/RaidReady/Data.lua"))("RaidReady", RR)
+  local KEY = { str = "ITEM_MOD_STRENGTH_SHORT", agi = "ITEM_MOD_AGILITY_SHORT", sta = "ITEM_MOD_STAMINA_SHORT",
+    int = "ITEM_MOD_INTELLECT_SHORT", defrtng = "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT" }
+  local SLOT = { head = "INVTYPE_HEAD", shoulder = "INVTYPE_SHOULDER", chest = "INVTYPE_CHEST", waist = "INVTYPE_WAIST",
+    legs = "INVTYPE_LEGS", feet = "INVTYPE_FEET", wrist = "INVTYPE_WRIST", hands = "INVTYPE_HAND", finger = "INVTYPE_FINGER" }
+  local game = {}
+  for id, it in pairs(RR.ITEMS) do
+    if id >= 226700 and id <= 226900 then
+      local raw = { RESISTANCE0_NAME = 150 + (it.stats.armorbonus or 0) }
+      for k, v in pairs(it.stats) do if KEY[k] then raw[KEY[k]] = v end end
+      game[id] = { name = it.name, slot = SLOT[it.slot], raw = raw }
+    end
+  end
+  local asked = {}
+  C_Item.RequestLoadItemDataByID = function(id) asked[id] = (asked[id] or 0) + 1 end
+  C_Item.GetItemInfo = function(id)
+    local g = game[id]
+    if not (g and asked[id]) then return nil end
+    return g.name, "item:" .. id, 4, 66, 60, "Armor", "Leather", 1, g.slot
+  end
+  C_Item.statsFor = function(link) local g = game[tonumber(link:match("item:(%d+)"))]; return g and g.raw or {} end
+  _G.C_TooltipInfo = { GetItemByID = function(id) return { lines = { { leftText = game[id] and game[id].name }, { leftText = "Classes: Druid" } } } end }
+  _G.LOCALIZED_CLASS_NAMES_MALE = { DRUID = "Druid", WARRIOR = "Warrior" }
+  _G.GetBuildInfo = function() return "1.60.1" end
+  local tick
+  C_Timer.NewTicker = function(_, fn) local t = { Cancel = function(self) self.cancelled = true end }; tick = { fn = fn, t = t }; return t end
+  ns.Core.harvest(226785, 226810)
+  local n = 0
+  while not tick.t.cancelled and n < 1000 do tick.fn(); n = n + 1 end
+  runTimers()
+  print("harvested records: " .. (function() local c = 0 for _ in pairs(ns.db.harvest.records) do c = c + 1 end return c end)()
+    .. " · merged for " .. token .. ": " .. tostring(ns.Core.foreverCount))
+end
 
 local v = ns.Core.view
 if ns.Core.lastError then print("ERROR: " .. tostring(ns.Core.lastError)) os.exit(1) end
