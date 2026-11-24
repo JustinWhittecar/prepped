@@ -126,4 +126,12 @@ T.eq("own side kept", other[4], nil)
 T.eq("no sources: not this rule's call", other[5], nil)
 T.eq("no side known: nothing", S.otherSide(sided, nil)[12544], nil)
 
+-- PvP rank gear names its side only in the vendor's zone ("Horde PVP Barracks").
+local pvp = S.otherSide({
+  [16550] = { name = "Warlord's Dragonhide Helmet", sources = { { type = "vendor", zone = "Horde PVP Barracks" } } },
+  [16451] = { name = "Field Marshal's Dragonhide Helmet", sources = { { type = "vendor", zone = "Alliance PVP Barracks" } } },
+}, "Alliance")
+T.eq("Horde barracks vendor ruled out", pvp[16550], true)
+T.eq("Alliance barracks vendor kept", pvp[16451], nil)
+
 T.done()

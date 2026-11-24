@@ -115,7 +115,12 @@ function SimGear.repItems(reps, factions, side)
   return out
 end
 
--- Items only the other side can get: every source names a faction, and none is `side`.
+-- A source's side: its faction, or for PvP rank gear the vendor's zone ("Horde PVP Barracks").
+local function sourceSide(src)
+  return src.faction or (type(src.zone) == "string" and src.zone:match("^(%a+) PVP Barracks$"))
+end
+
+-- Items only the other side can get: every source names a side, and none is `side`.
 -- Returns { [id] = true }; nothing when side is unknown.
 function SimGear.otherSide(items, side)
   local out = {}
@@ -124,7 +129,8 @@ function SimGear.otherSide(items, side)
     local srcs = type(item.sources) == "table" and item.sources or {}
     local other = #srcs > 0
     for _, src in ipairs(srcs) do
-      if not src.faction or src.faction == side then other = false; break end
+      local s = sourceSide(src)
+      if not s or s == side then other = false; break end
     end
     if other then out[id] = true end
   end
