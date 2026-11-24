@@ -129,6 +129,8 @@ function UI.refreshTracker(view)
   if not tracker then return end
   if not ns.db.showTracker or not view then tracker:Hide(); return end
   tracker:SetScale(ns.db.scale or 1)
+  -- Collapsing redraws without a recompute, so read the live setting, not the view's copy.
+  view.state.collapsed = ns.cdb.collapsed
   local t = ns.Tracker.lines(view.state)
   tracker.title:SetText(t.header)
   for _, l in ipairs(tracker.lines) do l:Hide() end
