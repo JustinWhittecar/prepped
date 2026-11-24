@@ -305,6 +305,183 @@ local function heading(parent, label, y)
   return fs
 end
 
+-- Stat weights ---------------------------------------------------------------------------------------
+-- The spec's SimGear weights, its choice now, and Custom's weights (AP units), or nil without data.
+local function weightState()
+  local spec = Core.spec()
+  local set = spec and Core.weightSetFor(spec)
+  local simgear = set and set.raw and set.raw.weights
+  if not simgear then return nil end
+  local choice = ns.cdb.weights[spec] or "simgear"
+  local custom = ns.Weights.resolve("custom", spec, ns.WeightPresets, ns.cdb.customWeights, simgear).weights
+  return { spec = spec, simgear = simgear, choice = choice, custom = custom }
+end
+
+local function choose(id)
+  local spec = Core.spec()
+  if not spec then return end
+  ns.cdb.weights[spec] = id ~= "simgear" and id or nil
+  Core.settingsChanged()
+end
+
+-- A dropdown: the button shows the choice; clicking opens the list under it.
+function UI.weightsDropdown(parent, x, y)
+  local dd = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+  dd:SetSize(290, 22)
+  dd:SetPoint("TOPLEFT", x, y)
+  local list = CreateFrame("Frame", nil, dd, "BackdropTemplate")
+  backdrop(list)
+  list:SetBackdropColor(0.08, 0.08, 0.1, 1)
+  list:SetPoint("TOPLEFT", dd, "BOTTOMLEFT", 0, -2)
+  list:SetWidth(290)
+  list:SetFrameLevel(parent:GetFrameLevel() + 20)
+  list:Hide()
+  list.items = {}
+  dd.list = list
+  local function fill()
+    local spec = Core.spec()
+    local choices = spec and ns.Weights.choices(spec, ns.WeightPresets) or {}
+    local current = spec and ns.cdb.weights[spec] or "simgear"
+    for i, c in ipairs(choices) do
+      local b = list.items[i]
+      if not b then
+        b = CreateFrame("Button", nil, list)
+        b:SetSize(282, 20)
+        b:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 20)
+        b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+        b.fs = text(b, 12)
+        b.fs:SetPoint("LEFT", 6, 0)
+        list.items[i] = b
+      end
+      b.fs:SetText((c.id == current and "|cff33ccff> " or "   ") .. c.name .. (c.id == current and "|r" or ""))
+      b:SetScript("OnClick", function() list:Hide(); choose(c.id) end)
+      b:Show()
+    end
+    for i = #choices + 1, #list.items do list.items[i]:Hide() end
+    list:SetHeight(8 + #choices * 20)
+  end
+  dd:SetScript("OnClick", function()
+    if list:IsShown() then list:Hide() else fill(); list:Show() end
+  end)
+  dd.refresh = function()
+    local spec = Core.spec()
+    local name = "SimGear (simmed)"
+    for _, c in ipairs(spec and ns.Weights.choices(spec, ns.WeightPresets) or {}) do
+      if c.id == (ns.cdb.weights[spec] or "simgear") then name = c.name end
+    end
+    dd:SetText(name .. "  v")
+    list:Hide()
+  end
+  return dd
+end
+
+-- The Custom weights panel, beside the options window while Custom is chosen: one box per stat
+-- SimGear weighs, in attack power units. Enter or leaving a box saves it.
+local ROW = 24
+function UI.weightsPanel(parent)
+  local panel = CreateFrame("Frame", "PreppedWeights", parent, "BackdropTemplate")
+  backdrop(panel)
+  panel:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
+  panel:SetPoint("TOPLEFT", parent, "TOPRIGHT", 4, 0)
+  panel:SetWidth(260)
+  panel:Hide()
+  local title = text(panel, 14, 0.2, 0.8, 1)
+  title:SetPoint("TOPLEFT", 12, -10)
+  local note = text(panel, 11, 0.65, 0.65, 0.65)
+  note:SetPoint("TOPLEFT", 12, -30)
+  note:SetWidth(236)
+  note:SetWordWrap(true)
+  note:SetText("Value of one point of each stat, with attack power (or spell power) = 1. Press Enter to save.")
+  panel.rows = {}
+  panel.buttons = {}
+  local cancelled -- the box Escape left, so leaving it doesn't save
+
+  local function save(stat, box)
+    local st = weightState()
+    if not st then return end
+    local new = ns.Weights.withValue(st.custom, stat, box:GetText())
+    if not new then
+      Core.print("weights: type a number, 0 or more")
+      box:SetText(string.format("%g", st.custom[stat] or 0))
+      return
+    end
+    ns.cdb.customWeights[st.spec] = new
+    Core.settingsChanged()
+  end
+
+  local function row(i)
+    local r = panel.rows[i]
+    if r then return r end
+    r = {}
+    r.label = text(panel, 12)
+    r.label:SetPoint("TOPLEFT", 14, -62 - (i - 1) * ROW)
+    r.box = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    r.box:SetSize(70, 20)
+    r.box:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, -58 - (i - 1) * ROW)
+    r.box:SetAutoFocus(false)
+    r.box:SetMaxLetters(8)
+    r.box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    r.box:SetScript("OnEscapePressed", function(self) cancelled = self; self:ClearFocus() end)
+    r.box:SetScript("OnEditFocusLost", function(self)
+      if cancelled == self then cancelled = nil; panel.refresh(); return end
+      if self.stat then save(self.stat, self) end
+    end)
+    panel.rows[i] = r
+    return r
+  end
+
+  local function startFrom(i, label, weightsFn)
+    local b = panel.buttons[i]
+    if not b then
+      b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+      b:SetSize(232, 22)
+      panel.buttons[i] = b
+    end
+    b:SetText(label)
+    b:SetScript("OnClick", function()
+      local st = weightState()
+      if not st then return end
+      ns.cdb.customWeights[st.spec] = weightsFn(st)
+      Core.settingsChanged()
+    end)
+    b:Show()
+    return b
+  end
+
+  panel.refresh = function()
+    local st = weightState()
+    if not (st and st.choice == "custom") then panel:Hide(); return end
+    title:SetText("Custom weights · " .. (ns.Spec.NAME[st.spec] or st.spec))
+    local rows = ns.Weights.rows(st.simgear, st.custom)
+    for i, r in ipairs(rows) do
+      local w = row(i)
+      w.label:SetText(r.label)
+      w.label:Show()
+      w.box.stat = r.stat
+      if not w.box:HasFocus() then w.box:SetText(string.format("%g", math.floor(r.value * 100 + 0.5) / 100)) end
+      w.box:Show()
+    end
+    for i = #rows + 1, #panel.rows do panel.rows[i].label:Hide(); panel.rows[i].box:Hide(); panel.rows[i].box.stat = nil end
+    local by = -62 - #rows * ROW - 8
+    local n = 1
+    startFrom(n, "Start from SimGear (simmed)", function(s) return ns.Weights.inAP(s.simgear) end)
+      :SetPoint("TOPLEFT", 14, by)
+    for _, p in ipairs(ns.WeightPresets[st.spec] or {}) do
+      n = n + 1
+      local copy = p.weights
+      startFrom(n, "Start from " .. p.name, function()
+        local t = {}
+        for k, v in pairs(copy) do t[k] = v end
+        return t
+      end):SetPoint("TOPLEFT", 14, by - (n - 1) * 26)
+    end
+    for i = n + 1, #panel.buttons do panel.buttons[i]:Hide() end
+    panel:SetHeight(-by + n * 26 + 8)
+    panel:Show()
+  end
+  return panel
+end
+
 local function buildOptions()
   options = CreateFrame("Frame", "PreppedOptions", UIParent, "BackdropTemplate")
   backdrop(options)
@@ -351,24 +528,14 @@ local function buildOptions()
   note:SetPoint("TOPLEFT", 18, y)
   note:SetText("Content target: Pre-raid (raids come once their loot data exists)")
   y = y - 20
-  -- Stat weights for the spec: SimGear's simmed ones, a preset, or Custom (/prep weights to edit).
-  local weightsBtn = add(button(options, "", function()
-    local spec = Core.spec()
-    if not spec then return end
-    local list = {}
-    for _, c in ipairs(ns.Weights.choices(spec, ns.WeightPresets)) do list[#list + 1] = c.id end
-    local nextID = cycle(list, ns.cdb.weights[spec] or "simgear")
-    ns.cdb.weights[spec] = nextID ~= "simgear" and nextID or nil
-    Core.settingsChanged()
-  end, 16, y, 300))
-  weightsBtn.refresh = function()
-    local spec, cur = Core.spec(), nil
-    for _, c in ipairs(spec and ns.Weights.choices(spec, ns.WeightPresets) or {}) do
-      if c.id == (ns.cdb.weights[spec] or "simgear") then cur = c.name end
-    end
-    weightsBtn:SetText("Stat weights: " .. (cur or "SimGear (simmed)"))
-  end
+  -- Stat weights for the spec: a dropdown of SimGear's simmed ones, the presets and Custom; Custom
+  -- opens the weights panel beside this window.
+  local label = text(options, 12)
+  label:SetPoint("TOPLEFT", 18, y - 4)
+  label:SetText("Stat weights")
+  add(UI.weightsDropdown(options, 110, y))
   y = y - 30
+  add(UI.weightsPanel(options)) -- refreshed with the window: shown only while Custom is chosen
 
   heading(options, "Obtainable (BiS leaves these out)", y); y = y - 22
   for _, f in ipairs({ { "reputation", "Exclude reputation items" }, { "profession", "Exclude profession bind-on-pickup items" },

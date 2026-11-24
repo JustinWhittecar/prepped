@@ -63,3 +63,37 @@ function Weights.resolve(choice, spec, presets, custom, simgear)
   end
   return nil
 end
+
+-- Readable stat names for the Custom panel; anything else is split at its capitals.
+local LABELS = {
+  AttackPower = "Attack power", MeleeCrit = "Crit (per 1%)", MeleeHit = "Hit (per 1%)",
+  SpellCrit = "Spell crit (per 1%)", SpellHit = "Spell hit (per 1%)", SpellPower = "Spell power",
+  HealingPower = "Healing power", MainHandDps = "Main-hand DPS", OffHandDps = "Off-hand DPS",
+  TwoHandDps = "Two-hand DPS", RangedDps = "Ranged DPS", Dodge = "Dodge (per 1%)", Parry = "Parry (per 1%)",
+  Block = "Block (per 1%)", Defense = "Defense skill", Mp5 = "Mana per 5 sec",
+}
+function Weights.label(stat)
+  return LABELS[stat] or stat:gsub("(%l)(%u)", "%1 %2")
+end
+
+-- The Custom panel's rows: { stat, label, value (yours, AP units; 0 if missing) } for each stat
+-- SimGear weighs, biggest SimGear weight first.
+function Weights.rows(simgear, mine)
+  local out = {}
+  for stat, w in pairs(simgear) do
+    if w ~= 0 then out[#out + 1] = { stat = stat, label = Weights.label(stat), value = mine[stat] or 0, w = w } end
+  end
+  table.sort(out, function(a, b) if a.w ~= b.w then return a.w > b.w end return a.stat < b.stat end)
+  return out
+end
+
+-- One stat typed in the panel: a new table with it set ("" = 0), or nil for a bad number.
+function Weights.withValue(weights, stat, text)
+  text = (text or ""):match("^%s*(.-)%s*$")
+  local v = text == "" and 0 or tonumber(text)
+  if not v or v < 0 then return nil end
+  local out = {}
+  for k, w in pairs(weights) do out[k] = w end
+  out[stat] = v
+  return out
+end

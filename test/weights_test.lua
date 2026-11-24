@@ -51,4 +51,24 @@ T.eq("custom: yours", W.resolve("custom", "FERAL_CAT", presets, { FERAL_CAT = { 
 T.near("custom not set yet: starts from SimGear's", W.resolve("custom", "BALANCE", presets, {}, SIMGEAR).weights.Agility, 3)
 T.eq("an unknown choice -> SimGear's", W.resolve("gone", "FERAL_CAT", presets, {}, SIMGEAR), nil)
 
+-- The Custom panel's rows: every stat SimGear weighs for the spec, biggest SimGear weight first,
+-- with a readable label and your value in AP units (missing from yours: 0).
+local rows = W.rows({ AttackPower = 0.2, Agility = 0.6, MeleeCrit = 6.4, Intellect = 0 }, { AttackPower = 1, Agility = 2.5 })
+T.eq("zero-weight stats left out", #rows, 3)
+T.eq("biggest SimGear weight first", rows[1].stat, "MeleeCrit")
+T.eq("readable label", rows[1].label, "Crit (per 1%)")
+T.eq("yours, missing -> 0", rows[1].value, 0)
+T.eq("yours", rows[2].value, 2.5)
+T.eq("unknown stat label from its name", W.label("SpellPenetration"), "Spell Penetration")
+
+-- An edit in the panel: a new Custom table with that one stat changed; a bad number refused.
+local base = { AttackPower = 1, Agility = 2.5 }
+local edited = W.withValue(base, "Agility", "3.1")
+T.eq("edited", edited.Agility, 3.1)
+T.eq("others kept", edited.AttackPower, 1)
+T.eq("base untouched", base.Agility, 2.5)
+T.eq("blank -> 0", W.withValue(base, "Agility", "").Agility, 0)
+T.eq("not a number refused", W.withValue(base, "Agility", "lots"), nil)
+T.eq("negative refused", W.withValue(base, "Agility", "-1"), nil)
+
 T.done()

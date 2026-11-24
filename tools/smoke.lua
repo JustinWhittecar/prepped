@@ -69,6 +69,8 @@ local function stub()
     if k == "Hide" then return function(self) self.shown = false end end
     if k == "IsShown" then return function(self) return self.shown end end
     if k == "SetShown" then return function(self, v) self.shown = v end end
+    if k == "GetFrameLevel" then return function() return 1 end end
+    if k == "GetText" then return function(self) return self.text end end
     if k == "GetPoint" then return function() return "CENTER", nil, "CENTER", 0, 0 end end
     return function() end
   end })
@@ -254,6 +256,25 @@ end
 ns.UI.toggleOptions()
 PreppedOptions.scripts.OnShow(PreppedOptions)
 print("options window built")
+-- Stat weights: Custom opens the panel beside the window, one box per stat SimGear weighs; typing
+-- a value and leaving the box saves it to Custom. Then back to the spec's own.
+do
+  local spec = ns.Core.spec()
+  ns.cdb.weights[spec] = "custom"
+  ns.Core.settingsChanged()
+  PreppedOptions.refresh()
+  local p = PreppedWeights
+  local box = p.rows[1] and p.rows[1].box
+  print(string.format("weights panel: %s, %d rows, first %s = %s", p.shown and "shown" or "HIDDEN", #p.rows,
+    tostring(p.rows[1] and p.rows[1].label.text), tostring(box and box.text)))
+  box:SetText("7.5")
+  box.scripts.OnEditFocusLost(box)
+  print("  edited: " .. box.stat .. " = " .. tostring(ns.cdb.customWeights[spec][box.stat]))
+  ns.cdb.weights[spec], ns.cdb.customWeights[spec] = nil, nil
+  ns.Core.settingsChanged()
+  PreppedOptions.refresh()
+  print("  back to SimGear: panel " .. (p.shown and "STILL SHOWN" or "hidden"))
+end
 
 -- Item tooltip lines through the real hook, for a few items: Forever and SimGear pieces, one SimGear
 -- lacks (a made-up head with no stats: must say "Not scored by Prepped"), and an elixir (no line).
