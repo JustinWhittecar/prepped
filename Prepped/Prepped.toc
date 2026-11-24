@@ -12,13 +12,9 @@
 ## AddonCompartmentFuncOnLeave: Prepped_OnCompartmentLeave
 ## X-Category: Raid
 ## X-License: GPL-3.0-or-later
-# TODO(release): create the CurseForge and Wago projects, then replace the IDs below and remove
-# the leading "# " from both lines. The packager reads only lines that start with "## ", so while
-# these stay commented a tagged release builds the zip but uploads nowhere (release.yml fails on it).
-#   CurseForge: the number in the project page's "About Project" box.
-#   Wago: the ID on the Wago Addons developer dashboard.
-# ## X-Curse-Project-ID: 000000
-# ## X-Wago-ID: XXXXXXXX
+## X-Curse-Project-ID: 1829038
+# Wago: not published there yet. To add it, create the project, put its ID on a "## X-Wago-ID:"
+# line and add the WAGO_API_TOKEN secret; release.yml then uploads there too.
 
 Locales\enUS.lua
 SimGearShim.lua

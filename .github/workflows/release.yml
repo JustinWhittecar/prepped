@@ -1,7 +1,7 @@
 name: Release
 
 # Push a tag (v0.1.0-beta, v0.1.0...) to build one zip with the BigWigs packager and upload it to
-# CurseForge and Wago. A tag containing "alpha" or "beta" uploads as that release type.
+# CurseForge (and Wago, once the .toc names a Wago project). A tag containing "alpha" or "beta" uploads as that release type.
 on:
   push:
     tags:
@@ -27,11 +27,12 @@ jobs:
         run: |
           fail=0
           [ -n "$CF_API_KEY" ] || { echo "::error::Secret CF_API_KEY is not set (CurseForge upload token)"; fail=1; }
-          [ -n "$WAGO_API_TOKEN" ] || { echo "::error::Secret WAGO_API_TOKEN is not set (Wago Addons API token)"; fail=1; }
           grep -Eq '^## X-Curse-Project-ID: *[0-9]+ *$' Prepped/Prepped.toc && ! grep -q '^## X-Curse-Project-ID: *0* *$' Prepped/Prepped.toc \
             || { echo "::error::Prepped/Prepped.toc has no real '## X-Curse-Project-ID:' line (see the TODO there)"; fail=1; }
-          grep -Eq '^## X-Wago-ID: *[A-Za-z0-9]+ *$' Prepped/Prepped.toc && ! grep -q '^## X-Wago-ID: *X* *$' Prepped/Prepped.toc \
-            || { echo "::error::Prepped/Prepped.toc has no real '## X-Wago-ID:' line (see the TODO there)"; fail=1; }
+          # Wago is optional (CurseForge only for now): with an X-Wago-ID line, its token must be set too.
+          if grep -Eq '^## X-Wago-ID:' Prepped/Prepped.toc; then
+            [ -n "$WAGO_API_TOKEN" ] || { echo "::error::Prepped.toc names a Wago project but secret WAGO_API_TOKEN is not set"; fail=1; }
+          fi
           version="${GITHUB_REF_NAME#v}"
           grep -q "^## \[$version\]" CHANGELOG.md \
             || { echo "::error::CHANGELOG.md has no '## [$version]' section for tag $GITHUB_REF_NAME"; fail=1; }
