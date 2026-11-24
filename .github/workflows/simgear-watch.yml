@@ -1,0 +1,57 @@
+name: SimGear watch
+
+# Weekly: if SimGear Forever has a release newer than tools/simgear-pin.txt, open an issue (once per
+# version). SimGear publishes on CurseForge only, read through the CurseForge Core API, so this needs
+# the CF_CORE_API_KEY secret; without it the job fails and says so.
+on:
+  schedule:
+    - cron: "23 7 * * 1" # Mondays 07:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare SimGear's latest release with the pin
+        env:
+          CF_CORE_API_KEY: ${{ secrets.CF_CORE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pinned=$(tools/simgear_cf.sh pinned)
+          latest=$(tools/simgear_cf.sh latest)
+          echo "SimGear Forever: pinned $pinned, latest on CurseForge $latest"
+          newest=$(printf '%s\n%s\n' "$pinned" "$latest" | sort -V | tail -n1)
+          if [ "$latest" = "$pinned" ] || [ "$newest" = "$pinned" ]; then
+            echo "Up to date."
+            exit 0
+          fi
+          title="SimGear Forever $latest released (pinned: $pinned)"
+          existing=$(gh issue list --state all --search "\"SimGear Forever $latest released\" in:title" --json number --jq '.[].number')
+          if [ -n "$existing" ]; then
+            echo "An issue for $latest already exists."
+            exit 0
+          fi
+          # Quoted heredoc: the backticks below are Markdown, not shell.
+          body=$(cat <<'EOF'
+          SimGear Forever **@LATEST@** is on [CurseForge](https://www.curseforge.com/wow/addons/simgearforever/files); Prepped is pinned to **@PINNED@** (`tools/simgear-pin.txt`).
+
+          - [ ] Read SimGear's changelog for data or scoring changes
+          - [ ] Diff the copied files in `Prepped/vendor/SimGear/` against the new release; copy any changes, update its README
+          - [ ] Rebuild the backup data addons (`tools/build_backup.lua`)
+          - [ ] Run `./run_tests.sh` and `luajit tools/smoke.lua` against the new install
+          - [ ] Bump `tools/simgear-pin.txt` to @LATEST@
+          - [ ] Add a CHANGELOG entry and tag a release
+
+          Opened by .github/workflows/simgear-watch.yml.
+          EOF
+          )
+          body=${body//@LATEST@/$latest}
+          body=${body//@PINNED@/$pinned}
+          gh issue create --title "$title" --body "$body"

@@ -2,7 +2,7 @@
 ## Title: Prepped
 ## Notes: Raid-night readiness for WoW Forever: one score across gear, enchants and consumables, attunement blockers, buff reminders and a to-do tracker. Built on SimGear Forever's data.
 ## Author: Justin Dielmann
-## Version: 0.1.0-dev
+## Version: @project-version@
 ## SavedVariables: PreppedDB
 ## SavedVariablesPerCharacter: PreppedCharDB
 ## OptionalDeps: SimGearForever, RaidReady
@@ -10,7 +10,17 @@
 ## AddonCompartmentFunc: Prepped_OnCompartmentClick
 ## AddonCompartmentFuncOnEnter: Prepped_OnCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Prepped_OnCompartmentLeave
+## X-Category: Raid
+## X-License: GPL-3.0-or-later
+# TODO(release): create the CurseForge and Wago projects, then replace the IDs below and remove
+# the leading "# " from both lines. The packager reads only lines that start with "## ", so while
+# these stay commented a tagged release builds the zip but uploads nowhere (release.yml fails on it).
+#   CurseForge: the number in the project page's "About Project" box.
+#   Wago: the ID on the Wago Addons developer dashboard.
+# ## X-Curse-Project-ID: 000000
+# ## X-Wago-ID: XXXXXXXX
 
+Locales\enUS.lua
 SimGearShim.lua
 vendor\SimGear\HitCap.lua
 vendor\SimGear\Stats.lua

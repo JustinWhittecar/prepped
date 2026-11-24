@@ -1,0 +1,5 @@
+# The SimGear Forever version Prepped is built and tested against: the copy in Prepped/vendor/SimGear,
+# the backup data addons, and the version CI fetches for the tests. One version on the first
+# non-comment line. Bump it only after updating those (see README, "When SimGear releases").
+# 0.16.0 is SimGearForever.toc's "## Version:" as installed on 2026-11-23.
+0.16.0
