@@ -159,4 +159,17 @@ T.eq("another way to get it", wb[2], nil)
 T.eq("other drops kept", wb[3], nil)
 T.eq("no sources: not this rule's call", wb[4], nil)
 
+-- Quests SimGear found only in cMaNGOS, not in Forever's client: their rewards aren't on Forever
+-- when no other source gives them.
+local q = S.cmangosQuestOnly({
+  [22066] = { name = "Sorcerer's Gloves", sources = { { type = "quest", origin = "cmangos" }, { type = "quest", origin = "cmangos" } } },
+  [2] = { name = "Client quest", sources = { { type = "quest", origin = "client" } } },
+  [3] = { name = "cMaNGOS quest or a drop", sources = { { type = "quest", origin = "cmangos" }, { type = "drop", origin = "cmangos" } } },
+  [4] = { name = "No sources", sources = {} },
+})
+T.eq("cMaNGOS-only quest reward", q[22066], true)
+T.eq("Forever's client quest kept", q[2], nil)
+T.eq("another source kept", q[3], nil)
+T.eq("no sources: not this rule's call", q[4], nil)
+
 T.done()

@@ -168,3 +168,18 @@ function SimGear.dropsOnlyFrom(items, npcs)
   end
   return out
 end
+
+-- Items whose every source is a quest SimGear found only in cMaNGOS, not in Forever's own client
+-- (classic tier 0.5 quests, the AQ war, Darkmoon deck turn-ins): not on Forever. { [id] = true }.
+function SimGear.cmangosQuestOnly(items)
+  local out = {}
+  for id, item in pairs(items or {}) do
+    local srcs = type(item.sources) == "table" and item.sources or {}
+    local only = #srcs > 0
+    for _, src in ipairs(srcs) do
+      if not (src.type == "quest" and src.origin == "cmangos") then only = false; break end
+    end
+    if only then out[id] = true end
+  end
+  return out
+end

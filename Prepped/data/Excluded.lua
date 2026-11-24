@@ -77,3 +77,10 @@ ns.WorldBosses = {
   [14889] = "Emeriss",
   [14890] = "Taerar",
 }
+
+-- Silithus's Abyssal Council summons aren't on Forever before raids (confirmed by the author, 24 Nov
+-- 2026). Only the two SimGear has loot from are listed.
+ns.AbyssalCouncil = {
+  [15203] = "Prince Skaldrenox",
+  [15305] = "Lord Skwol",
+}

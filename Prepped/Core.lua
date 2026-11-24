@@ -143,6 +143,8 @@ local function unavailableItems()
   local d = Core.data()
   for id in pairs(d and d.wrongSide or {}) do unavailable[id] = true end
   for id in pairs(d and ns.SimGear.dropsOnlyFrom(d.items, ns.WorldBosses or {}) or {}) do unavailable[id] = true end
+  for id in pairs(d and ns.SimGear.dropsOnlyFrom(d.items, ns.AbyssalCouncil or {}) or {}) do unavailable[id] = true end
+  for id in pairs(d and ns.SimGear.cmangosQuestOnly(d.items) or {}) do unavailable[id] = true end
   return unavailable
 end
 
