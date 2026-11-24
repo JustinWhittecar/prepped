@@ -301,7 +301,7 @@ local function buildOptions()
   options = CreateFrame("Frame", "PreppedOptions", UIParent, "BackdropTemplate")
   backdrop(options)
   options:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
-  options:SetSize(420, 890)
+  options:SetSize(420, 914)
   options:SetPoint("CENTER")
   options:SetFrameStrata("DIALOG")
   options:SetMovable(true)
@@ -525,6 +525,8 @@ local function buildOptions()
   y = y - 24
   add(check(options, "Buff reminder in 5-player dungeons", function() return ns.db.buffsDungeon end,
     function(on) ns.db.buffsDungeon = on; Core.changed() end, y)); y = y - 24
+  add(check(options, "Loot alert in chat when a BiS item drops", function() return ns.db.lootAlert end,
+    function(on) ns.db.lootAlert = on end, y)); y = y - 24
   add(check(options, "Lock tracker and buff bar", function() return ns.db.locked end,
     function(on) ns.db.locked = on or nil end, y)); y = y - 26
   local scale = add(button(options, "", function()

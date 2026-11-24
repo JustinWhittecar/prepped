@@ -406,7 +406,10 @@ local function gearPart(spec, set)
     have = have + math.min(ns.Bis.setBonusAt(sets[setID], n), s.points)
     max = max + s.points
   end
-  return { have = have, bis = max }, todos, rows, worn
+  -- Each worn item's points, for the sheet sync's slot rows (Core.measure).
+  local wornPts = {}
+  for inv = 1, 18 do if worn[inv] then wornPts[inv] = { id = worn[inv].id, points = wp(inv) } end end
+  return { have = have, bis = max }, todos, rows, worn, wornPts
 end
 
 -- Enchants ----------------------------------------------------------------------------------------------
@@ -417,7 +420,7 @@ local function enchantPart(spec, set, worn)
   local byLevel = raw.source.kind == "sim" and type(d.enchants) == "table" and d.enchants[raw.source.maxLevel]
   local sims = type(byLevel) == "table" and byLevel[raw.spec or set.key] or nil
   local bis = bisFor(spec, set)
-  local have, max, todos = 0, 0, {}
+  local have, max, todos, slots = 0, 0, {}, {}
   for _, s in ipairs(ns.Enchants.slotsFor(token, spec)) do
     -- Weapon rows follow the BiS weapon: two-hand or one-hand on 16, a shield on 17.
     local target = bis[s.inv]
@@ -443,10 +446,12 @@ local function enchantPart(spec, set, worn)
         if best - h > 0 then
           todos[#todos + 1] = { label = ns.Enchants.shortName(r.best.row) .. " on " .. s.label:lower(), gain = best - h }
         end
+        slots[#slots + 1] = { key = s.key, pct = h / best, enchanted = id ~= nil, link = w and w.link,
+          text = id and enchantByID[id] and ns.Enchants.shortName(enchantByID[id]) or nil }
       end
     end
   end
-  return { have = have, bis = max }, todos
+  return { have = have, bis = max }, todos, slots
 end
 
 -- Consumables and buffs ----------------------------------------------------------------------------------
@@ -571,6 +576,39 @@ function Core.compute()
     view.buffSlots = raidShown
   end
   return view
+end
+
+-- One spec measured against what you wear now, for the sheet sync and the loot alert (Watch.lua):
+-- readiness with its steps, Raid Ready-style slot rows, each enchant row, consumable counts (bags +
+-- bank) and the BiS item IDs. nil when the spec has no weights.
+function Core.measure(spec)
+  local d = Core.data()
+  local set = d and spec and weightSet(spec)
+  if not set then return nil end
+  local gear, gearTodos, _, worn, wornPts = gearPart(spec, set)
+  local ench, enchTodos, enchRows = enchantPart(spec, set, worn)
+  local plan, _, stock = consumablePlan(spec, set, false)
+  local steps = {}
+  for _, t in ipairs(gearTodos) do steps[#steps + 1] = t end
+  for _, t in ipairs(enchTodos) do steps[#steps + 1] = t end
+  local r = ns.Readiness.compute({ gear = gear, enchants = ench, consumables = { have = plan.have, bis = plan.bis } }, steps)
+  local bis, bisPts, bisIDs = bisFor(spec, set), {}, {}
+  for inv, b in pairs(bis) do
+    if type(inv) == "number" then bisPts[inv], bisIDs[b.id] = { id = b.id, points = b.points }, true end
+  end
+  -- Counts for every consumable open to the spec, not just the planned stack: the sheet looks up its
+  -- own picks by item ID, and those can differ from Prepped's.
+  local cons = {}
+  for id, n in pairs(stock) do cons[id] = n end
+  local relic = bis[18] and bis[18].item.slot == "INVTYPE_RELIC"
+  return { readiness = r, slots = ns.Sync.slotRows(wornPts, bisPts, relic), enchants = enchRows, cons = cons, bis = bisIDs }
+end
+
+-- In bags, bank or worn: what Raid Ready counted as owned.
+function Core.owns(id)
+  if itemCount(id, true) > 0 then return true end
+  for inv = 1, 19 do if GetInventoryItemID("player", inv) == id then return true end end
+  return false
 end
 
 -- Refresh plumbing: changes are batched, then every listener redraws from one compute.
