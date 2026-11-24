@@ -66,3 +66,14 @@ ns.Excluded = {
   [21523] = "not on Forever: Treasure of the Timeless One (Silithus)", -- Fang of Korialstrasz
   [22725] = "not on Forever: A Humble Offering (Silithus)", -- Band of Cenarius
 }
+
+-- World bosses: their loot takes a raid group, so it's never a Pre-raid target. By NPC ID, so every
+-- item they drop is covered (SimGear has their tables from cMaNGOS). Azuregos isn't in SimGear's data.
+ns.WorldBosses = {
+  [6109] = "Azuregos",
+  [12397] = "Lord Kazzak",
+  [14887] = "Ysondre",
+  [14888] = "Lethon",
+  [14889] = "Emeriss",
+  [14890] = "Taerar",
+}

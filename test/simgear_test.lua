@@ -145,4 +145,18 @@ T.eq("BoP craft tagged", bop[250619], true)
 T.eq("tradable craft not tagged", bop[252484], nil)
 T.eq("drop not tagged", bop[13340], nil)
 
+-- World boss loot (a raid group's kill, not Pre-raid gear): items whose every source is a drop
+-- from one of the bosses named.
+local bosses = { [14889] = "Emeriss", [12397] = "Lord Kazzak" }
+local wb = S.dropsOnlyFrom({
+  [20624] = { name = "Ring of the Unliving", sources = { { type = "drop", id = 14889 } } },
+  [2] = { name = "Kazzak or a quest", sources = { { type = "drop", id = 12397 }, { type = "quest", id = 99 } } },
+  [3] = { name = "Dungeon drop", sources = { { type = "drop", id = 10440 } } },
+  [4] = { name = "No sources", sources = {} },
+}, bosses)
+T.eq("world boss only", wb[20624], "Emeriss")
+T.eq("another way to get it", wb[2], nil)
+T.eq("other drops kept", wb[3], nil)
+T.eq("no sources: not this rule's call", wb[4], nil)
+
 T.done()

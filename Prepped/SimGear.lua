@@ -152,3 +152,19 @@ function SimGear.bopCrafts(items, tradable)
   end
   return out
 end
+
+-- Items whose every source is a drop from one of `npcs` ({ [npc ID] = name }), e.g. world bosses:
+-- { [id] = the boss's name }.
+function SimGear.dropsOnlyFrom(items, npcs)
+  local out = {}
+  for id, item in pairs(items or {}) do
+    local srcs = type(item.sources) == "table" and item.sources or {}
+    local boss = #srcs > 0
+    for _, src in ipairs(srcs) do
+      if not (src.type == "drop" and npcs[src.id]) then boss = false; break end
+      boss = npcs[src.id]
+    end
+    if boss then out[id] = boss end
+  end
+  return out
+end
