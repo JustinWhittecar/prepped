@@ -405,7 +405,7 @@ local function blockers()
   })
 end
 
--- Everything the tracker, buff bar and /pr commands show. Rebuilt on every change.
+-- Everything the tracker, buff bar and /prep commands show. Rebuilt on every change.
 function Core.compute()
   local level = UnitLevel("player")
   local inInstance, kind = IsInInstance()
@@ -454,7 +454,7 @@ function Core.changed(full)
     local ok, view = pcall(Core.compute)
     if not ok then
       Core.lastError = view
-      view = { state = { level = UnitLevel("player"), badge = "Error: /pr debug" } }
+      view = { state = { level = UnitLevel("player"), badge = "Error: /prep debug" } }
     end
     Core.view = view
     for _, fn in ipairs(Core.listeners) do

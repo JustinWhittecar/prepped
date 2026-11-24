@@ -1,4 +1,4 @@
--- UI: the tracker, the buff bar, the options window, /pr and the addon compartment button.
+-- UI: the tracker, the buff bar, the options window, /prep and the addon compartment button.
 -- Draws whatever Core.compute and the pure modules return; no scoring here.
 local ADDON, ns = ...
 local UI = {}
@@ -108,7 +108,7 @@ local function line(i)
   if not l then
     l = text(tracker, 12)
     l:SetWidth(WIDTH - 16)
-    l:SetWordWrap(false)
+    l:SetWordWrap(true) -- a long blocker line wraps instead of being cut off
     tracker.lines[i] = l
   end
   return l
@@ -157,7 +157,7 @@ function UI.refreshTracker(view)
       end
       y = y - 4
     end
-    y = y - LINE
+    y = y - math.max(LINE, (fs:GetStringHeight() or 0) + 3)
   end
   tracker:SetHeight(-y + 6)
   tracker:Show()
@@ -472,7 +472,7 @@ local function slash(msg)
   msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
   if msg == "" then
     ns.db.showTracker = not ns.db.showTracker
-    Core.print("tracker " .. (ns.db.showTracker and "shown" or "hidden (/pr shows it again)"))
+    Core.print("tracker " .. (ns.db.showTracker and "shown" or "hidden (/prep shows it again)"))
     UI.refreshTracker(Core.view)
   elseif msg == "options" or msg == "o" then
     UI.toggleOptions()
@@ -486,22 +486,22 @@ local function slash(msg)
     local arg = msg:match("^spec%s+(%S+)")
     local token = select(2, UnitClass("player"))
     local ok, value = ns.Spec.parseOverride(arg, token)
-    if not ok then Core.print("/pr spec " .. ns.Spec.usage(token) .. "|auto"); return end
+    if not ok then Core.print("/prep spec " .. ns.Spec.usage(token) .. "|auto"); return end
     ns.cdb.groupSpec[Core.talentGroup()] = value or nil
     Core.settingsChanged()
     Core.print("talent group " .. Core.talentGroup() .. ": " .. (value and (ns.Spec.NAME[value] or value) or "detected from talents"))
   else
-    Core.print("/pr (show or hide the tracker) · /pr options · /pr spec <name>|auto · /pr buffs test · /pr reset · /pr debug")
+    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep buffs test · /prep reset · /prep debug")
   end
 end
 
 local function registerSlash()
-  local taken = slashTaken("/pr")
+  local taken = slashTaken("/prep")
   SLASH_PREPPED1 = "/prepped"
   if taken then
-    Core.print("/pr is already used by another addon (" .. taken .. "), so use /prepped.")
+    Core.print("/prep is already used by " .. taken .. ", so use /prepped.")
   else
-    SLASH_PREPPED2 = "/pr"
+    SLASH_PREPPED2 = "/prep"
   end
   SlashCmdList.PREPPED = slash
 end

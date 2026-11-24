@@ -32,7 +32,7 @@ local function stub()
   local o = { scripts = {}, shown = false }
   return setmetatable(o, { __index = function(t, k)
     if k == "SetScript" then return function(self, name, fn) self.scripts[name] = fn end end
-    if k == "GetStringWidth" or k == "GetWidth" then return function() return 40 end end
+    if k == "GetStringWidth" or k == "GetWidth" or k == "GetStringHeight" then return function() return 40 end end
     if k == "GetFontString" then return function(self) local fs = rawget(self, "fs") or stub(); rawset(self, "fs", fs); return fs end end
     if k == "CreateFontString" or k == "CreateTexture" then return function() return stub() end end
     if k == "SetText" then return function(self, s) self.text = s end end
