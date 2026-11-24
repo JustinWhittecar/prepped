@@ -29,6 +29,8 @@ local function initDB()
   -- Consumables nobody has confirmed on Forever (Jujus) stay out of the defaults until the player says.
   if ns.cdb.filters.unconfirmed == nil then ns.cdb.filters.unconfirmed = true end
   ns.cdb.consumables = ns.cdb.consumables or {} -- [spec][slot] = item ID or "none"
+  ns.cdb.weights = ns.cdb.weights or {} -- [spec] = "simgear" (nil), a preset id or "custom"
+  ns.cdb.customWeights = ns.cdb.customWeights or {} -- [spec] = { [stat] = AP units }
   -- Moving from Raid Ready: its talent-group choices, once.
   local rr = _G.RaidReadyCharDB
   if not ns.cdb.importedRaidReady and type(rr) == "table" and type(rr.groupSpec) == "table" then
@@ -97,9 +99,11 @@ function Core.data()
     data, dataProblem = d, nil
     data.items = Core.withForeverItems(d.items, token)
     -- Reputation items: SimGear's reps give the faction and standing (a source where it has none),
-    -- the other side's factions are never targets, and crafts from reputation recipes that bind
+    -- the other side's factions and quests are never targets, and crafts from reputation recipes that bind
     -- on pickup join the reputation filter.
-    local rep = ns.SimGear.repItems(d.reps, d.factions, UnitFactionGroup and UnitFactionGroup("player"))
+    local side = UnitFactionGroup and UnitFactionGroup("player")
+    local rep = ns.SimGear.repItems(d.reps, d.factions, side)
+    for id in pairs(ns.SimGear.otherSide(data.items, side)) do rep.wrongSide[id] = true end
     data.items = ns.ForeverItems.addSources(data.items, rep.sources)
     local tagged = {}
     for id, f in pairs(ns.Lists.reputation or {}) do tagged[id] = f end
@@ -209,26 +213,36 @@ local function weightSet(spec)
   if not d then return nil end
   local token = classToken()
   local key = setKey(spec, token)
-  if setCache[key] ~= nil then return setCache[key] or nil end
+  local choice = ns.cdb.weights[spec] or "simgear"
+  local id = key .. ":" .. choice
+  if setCache[id] ~= nil then return setCache[id] or nil end
   local raw = d.specs[key] and ns.Score.pickSet(d.specs[key], LEVEL)
-  if not raw then setCache[key] = false; return nil end
+  if not raw then setCache[id] = false; return nil end
   local src = raw.source
   local byLevel = src.kind == "sim" and type(d.itemEffects) == "table" and d.itemEffects[src.maxLevel]
   local sims = type(byLevel) == "table" and byLevel[raw.spec or key]
   local effects = {}
-  for id, v in pairs(raw.effects or {}) do effects[id] = v end
+  for eid, v in pairs(raw.effects or {}) do effects[eid] = v end
   if type(sims) == "table" then
-    for id, e in pairs(sims) do
-      if type(e) == "table" and type(e.v) == "number" and effects[id] == nil then effects[id] = e.v end
+    for eid, e in pairs(sims) do
+      if type(e) == "table" and type(e.v) == "number" and effects[eid] == nil then effects[eid] = e.v end
     end
   end
+  local ws = setmetatable({}, { __index = raw })
+  -- Weights the player chose (a preset or Custom, in AP units) replace SimGear's, scaled to its
+  -- points so its simmed trinkets and set bonuses keep their worth (data/Weights.lua).
+  local chosen = ns.Weights.resolve(choice, spec, ns.WeightPresets, ns.cdb.customWeights, raw.weights or {})
+  if chosen then
+    ws.weights = ns.Weights.scaled(chosen.weights, raw.weights or {})
+    ws.source = { kind = "chosen", name = chosen.name, maxLevel = raw.source.maxLevel, from = raw.source }
+  end
   -- Prepped's overrides fill what SimGear doesn't value (data/Overrides.lua).
-  effects = ns.Effects.merge(effects, ns.EffectOverrides, spec, raw.weights or {}, d.items,
-    function(stats) return ns.Score.value(stats, raw) end)
-  local ws = setmetatable({ effects = effects }, { __index = raw })
-  setCache[key] = { ws = ws, raw = raw, key = key }
-  return setCache[key]
+  ws.effects = ns.Effects.merge(effects, ns.EffectOverrides, spec, ws.weights, d.items,
+    function(stats) return ns.Score.value(stats, ws) end)
+  setCache[id] = { ws = ws, raw = raw, key = key, id = id, weights = chosen }
+  return setCache[id]
 end
+Core.weightSetFor = weightSet
 
 -- Gear ------------------------------------------------------------------------------------------------
 local GetItemStatsFn = (C_Item and C_Item.GetItemStats) or GetItemStats
@@ -283,7 +297,7 @@ local function setsFor(set)
   local d = Core.data()
   local value = function(stats) return ns.Score.value(stats, set.ws) end
   local sims = d and ns.SimGear.setSims(d.setBonusSims, set.raw, set.key)
-  sims = ns.Effects.setSims(sims, ns.SetBonusOverrides, set.key, set.raw.weights or {})
+  sims = ns.Effects.setSims(sims, ns.SetBonusOverrides, set.key, set.ws.weights)
   local out = ns.SimGear.setBonuses(d and d.sets, sims, value)
   for setID, s in pairs(ns.ForeverItems.setBonuses(Core.foreverSets, value, ns.SetBonusSameAs, sims)) do
     out[setID] = s
@@ -293,7 +307,7 @@ end
 
 local function bisFor(spec, set)
   local f = ns.cdb.filters
-  local key = set.key .. ":" .. tostring(f.reputation) .. tostring(f.profession) .. tostring(f.pvp) .. tostring(f.darkmoon)
+  local key = set.id .. ":" .. tostring(f.reputation) .. tostring(f.profession) .. tostring(f.pvp) .. tostring(f.darkmoon)
   if bisCache[key] then return bisCache[key] end
   local token = classToken()
   bisCache[key] = ns.Bis.pick({

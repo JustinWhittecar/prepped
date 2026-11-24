@@ -125,6 +125,8 @@ fire("ADDON_LOADED", "Prepped")
 runTimers()
 ns.cdb.collapsed = false
 if arg[4] then ns.cdb.groupSpec[1] = arg[4] end
+-- PREPPED_WEIGHTS=<choice> (raidready, custom...): score the spec in arg 4 with those weights.
+if os.getenv("PREPPED_WEIGHTS") and arg[4] then ns.cdb.weights[arg[4]] = os.getenv("PREPPED_WEIGHTS") end
 fire("PLAYER_ENTERING_WORLD")
 runTimers()
 

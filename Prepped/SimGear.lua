@@ -114,3 +114,19 @@ function SimGear.repItems(reps, factions, side)
   end
   return out
 end
+
+-- Items only the other side can get: every source names a faction, and none is `side`.
+-- Returns { [id] = true }; nothing when side is unknown.
+function SimGear.otherSide(items, side)
+  local out = {}
+  if not side then return out end
+  for id, item in pairs(items or {}) do
+    local srcs = type(item.sources) == "table" and item.sources or {}
+    local other = #srcs > 0
+    for _, src in ipairs(srcs) do
+      if not src.faction or src.faction == side then other = false; break end
+    end
+    if other then out[id] = true end
+  end
+  return out
+end

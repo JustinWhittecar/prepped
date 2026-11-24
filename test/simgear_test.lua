@@ -110,4 +110,20 @@ T.eq("own side's faction allowed", r.wrongSide[272200], nil)
 T.eq("neutral faction allowed", r.wrongSide[16000], nil)
 T.eq("no side known: nothing ruled out", S.repItems(reps, factions, nil).wrongSide[272059], nil)
 
+-- Items only the other side can get: every source is marked for the other faction (a Horde quest).
+local sided = {
+  [12544] = { name = "Thrall's Resolve", sources = { { type = "quest", faction = "Horde" } } },
+  [2] = { name = "Both sides' quests", sources = { { type = "quest", faction = "Horde" }, { type = "quest", faction = "Alliance" } } },
+  [3] = { name = "Horde quest or a drop", sources = { { type = "quest", faction = "Horde" }, { type = "drop" } } },
+  [4] = { name = "Alliance quest", sources = { { type = "quest", faction = "Alliance" } } },
+  [5] = { name = "No sources", sources = {} },
+}
+local other = S.otherSide(sided, "Alliance")
+T.eq("Horde-only item ruled out", other[12544], true)
+T.eq("either side's quest kept", other[2], nil)
+T.eq("unsided source kept", other[3], nil)
+T.eq("own side kept", other[4], nil)
+T.eq("no sources: not this rule's call", other[5], nil)
+T.eq("no side known: nothing", S.otherSide(sided, nil)[12544], nil)
+
 T.done()

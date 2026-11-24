@@ -301,7 +301,7 @@ local function buildOptions()
   options = CreateFrame("Frame", "PreppedOptions", UIParent, "BackdropTemplate")
   backdrop(options)
   options:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
-  options:SetSize(420, 864)
+  options:SetSize(420, 890)
   options:SetPoint("CENTER")
   options:SetFrameStrata("DIALOG")
   options:SetMovable(true)
@@ -342,7 +342,25 @@ local function buildOptions()
   local note = text(options, 11, 0.6, 0.6, 0.6)
   note:SetPoint("TOPLEFT", 18, y)
   note:SetText("Content target: Pre-raid (raids come once their loot data exists)")
-  y = y - 24
+  y = y - 20
+  -- Stat weights for the spec: SimGear's simmed ones, a preset, or Custom (/prep weights to edit).
+  local weightsBtn = add(button(options, "", function()
+    local spec = Core.spec()
+    if not spec then return end
+    local list = {}
+    for _, c in ipairs(ns.Weights.choices(spec, ns.WeightPresets)) do list[#list + 1] = c.id end
+    local nextID = cycle(list, ns.cdb.weights[spec] or "simgear")
+    ns.cdb.weights[spec] = nextID ~= "simgear" and nextID or nil
+    Core.settingsChanged()
+  end, 16, y, 300))
+  weightsBtn.refresh = function()
+    local spec, cur = Core.spec(), nil
+    for _, c in ipairs(spec and ns.Weights.choices(spec, ns.WeightPresets) or {}) do
+      if c.id == (ns.cdb.weights[spec] or "simgear") then cur = c.name end
+    end
+    weightsBtn:SetText("Stat weights: " .. (cur or "SimGear (simmed)"))
+  end
+  y = y - 30
 
   heading(options, "Obtainable (BiS leaves these out)", y); y = y - 22
   for _, f in ipairs({ { "reputation", "Exclude reputation items" }, { "profession", "Exclude profession bind-on-pickup items" },
@@ -580,6 +598,44 @@ local function debug()
   if Core.lastError then Core.print("last error: " .. tostring(Core.lastError)) end
 end
 
+-- /prep weights: the spec's weights in use, in AP units. /prep weights <stat> <value>: set one in
+-- Custom (starting from the weights in use) and switch to Custom. /prep weights simgear|<preset>|custom.
+function UI.weights(arg)
+  local spec, d = Core.spec(), Core.data()
+  local set = spec and Core.weightSetFor(spec)
+  if not (set and d) then Core.print("weights: no SimGear data for this spec yet"); return end
+  local simgear = set.raw.weights or {}
+  local function current() return set.weights and set.weights.weights or ns.Weights.inAP(simgear) end
+  arg = arg or ""
+  for _, c in ipairs(ns.Weights.choices(spec, ns.WeightPresets)) do
+    if arg == c.id then
+      ns.cdb.weights[spec] = c.id ~= "simgear" and c.id or nil
+      Core.settingsChanged()
+      Core.print("weights: " .. c.name)
+      return
+    end
+  end
+  if arg ~= "" then
+    local stat, v = ns.Weights.parseEdit(arg, simgear)
+    if not stat then Core.print("/prep weights <stat> <value>: a stat SimGear weighs (Agility, MeleeCrit...) and a number 0 or more"); return end
+    local custom = {}
+    for k, w in pairs(ns.cdb.customWeights[spec] or current()) do custom[k] = w end
+    custom[stat] = v
+    ns.cdb.customWeights[spec], ns.cdb.weights[spec] = custom, "custom"
+    Core.settingsChanged()
+    Core.print(string.format("weights: Custom, %s = %g", stat, v))
+    return
+  end
+  local name = set.weights and set.weights.name or "SimGear (simmed)"
+  local parts = {}
+  for k, w in pairs(current()) do if w ~= 0 then parts[#parts + 1] = string.format("%s %.3g", k, w) end end
+  table.sort(parts)
+  Core.print("weights (" .. name .. ", attack power = 1): " .. table.concat(parts, ", "))
+  local ids = {}
+  for _, c in ipairs(ns.Weights.choices(spec, ns.WeightPresets)) do ids[#ids + 1] = c.id end
+  Core.print("/prep weights " .. table.concat(ids, "|") .. " to switch · /prep weights <stat> <value> to edit Custom")
+end
+
 local function slash(msg)
   msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
   if msg == "" then
@@ -601,6 +657,8 @@ local function slash(msg)
   elseif msg:match("^harvest") then -- maintainers only, so not in the help line (see Core.harvest)
     local a, b = msg:match("^harvest%s+(%d+)%s+(%d+)")
     Core.harvest(tonumber(a), tonumber(b))
+  elseif msg:match("^weights") then
+    UI.weights(msg:match("^weights%s*(.*)$"))
   elseif msg:match("^spec") then
     local arg = msg:match("^spec%s+(%S+)")
     local token = select(2, UnitClass("player"))
@@ -610,7 +668,7 @@ local function slash(msg)
     Core.settingsChanged()
     Core.print("talent group " .. Core.talentGroup() .. ": " .. (value and (ns.Spec.NAME[value] or value) or "detected from talents"))
   else
-    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep buffs test · /prep reset · /prep debug")
+    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep weights [stat value] · /prep buffs test · /prep reset · /prep debug")
   end
 end
 
