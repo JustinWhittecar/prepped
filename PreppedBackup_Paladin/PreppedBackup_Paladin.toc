@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: Prepped Backup - Paladin
+## Notes: Prepped's snapshot of SimGear Forever's Paladin data, loaded only when SimGear's own can't be read. Leave it enabled.
+## Author: Justin Dielmann
+## Version: 0.16.0-2026-11-23
+## LoadOnDemand: 1
+
+Data.lua
