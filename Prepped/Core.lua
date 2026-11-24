@@ -590,12 +590,18 @@ function Core.harvest(from, to)
     for i = #waiting, 1, -1 do
       local w = waiting[i]
       w.ticks = w.ticks + 1
-      local name, link, quality, itemLevel, minLevel, _, _, _, equipLoc = C_Item.GetItemInfo(w.id)
+      local name, link, quality, itemLevel, minLevel, _, _, _, equipLoc, _, _, _, _, _, _, setID = C_Item.GetItemInfo(w.id)
       if name and link then
         local raw = GetItemStatsFn and GetItemStatsFn(link) or {}
-        local classes = ns.ForeverItems.classesFrom(tooltipLines(w.id), tokens)
+        local lines = tooltipLines(w.id)
+        local classes = ns.ForeverItems.classesFrom(lines, tokens)
+        local set
+        if setID and setID > 0 then
+          local setName = C_Item.GetItemSetInfo and C_Item.GetItemSetInfo(setID)
+          set = { id = setID, name = setName, bonuses = ns.ForeverItems.setBonusesFrom(lines) }
+        end
         h.records[w.id] = ns.ForeverItems.record({ name = name, quality = quality, itemLevel = itemLevel,
-          minLevel = minLevel, equipLoc = equipLoc }, raw, classes)
+          minLevel = minLevel, equipLoc = equipLoc }, raw, classes, set)
         found = found + 1
         table.remove(waiting, i)
       elseif w.ticks >= PATIENCE then

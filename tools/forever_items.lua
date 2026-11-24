@@ -26,8 +26,14 @@ for _, id in ipairs(ids) do
   local classes, raw = {}, {}
   for _, c in ipairs(sortedKeys(r.classes)) do classes[#classes + 1] = c .. " = true" end
   for _, k in ipairs(sortedKeys(r.raw)) do raw[#raw + 1] = k .. " = " .. tostring(r.raw[k]) end
-  out[#out + 1] = ("  [%d] = { name = %s, slot = %q, quality = %d, ilvl = %d, req = %d, classes = { %s }, raw = { %s } },")
-    :format(id, q(r.name), r.slot, r.quality or 0, r.ilvl or 0, r.req or 0, table.concat(classes, ", "), table.concat(raw, ", "))
+  local set = "nil"
+  if r.set then
+    local b = {}
+    for _, x in ipairs(r.set.bonuses or {}) do b[#b + 1] = ("{ count = %d, text = %s }"):format(x.count, q(x.text)) end
+    set = ("{ id = %d, name = %s, bonuses = { %s } }"):format(r.set.id, q(r.set.name or "?"), table.concat(b, ", "))
+  end
+  out[#out + 1] = ("  [%d] = { name = %s, slot = %q, quality = %d, ilvl = %d, req = %d, classes = { %s }, raw = { %s }, set = %s },")
+    :format(id, q(r.name), r.slot, r.quality or 0, r.ilvl or 0, r.req or 0, table.concat(classes, ", "), table.concat(raw, ", "), set)
 end
 out[#out + 1] = "}"
 local f = assert(io.open("Prepped/data/ForeverItems.lua", "w"))

@@ -64,4 +64,13 @@ T.eq("currency cost", F.costText(0, { { amount = 100, name = "Tarnished Undermin
 T.eq("gold and item", F.costText(250000, { { amount = 2, name = "Arcanite Bar" } }), "2 Arcanite Bar + 25g")
 T.eq("gold only", F.costText(1500, {}), "15s")
 
+-- A set's bonuses from tooltip lines: "(n) Set: text", in order; nil when the item has none.
+local lines = { "Feralheart Faceguard", "Classes: Druid", "Feralheart Guardian (1/8)", "  Feralheart Faceguard",
+  "(2) Set: +200 Armor.", "(4) Set: Increases your chance to dodge by 1%.", "(6) Set: +20 Stamina." }
+local bonuses = F.setBonusesFrom(lines)
+T.eq("three bonuses", bonuses and #bonuses, 3)
+T.eq("count", bonuses and bonuses[2].count, 4)
+T.eq("text", bonuses and bonuses[2].text, "Increases your chance to dodge by 1%.")
+T.eq("no set", F.setBonusesFrom({ "Cloak of Warding", "Binds when picked up" }), nil)
+
 T.done()

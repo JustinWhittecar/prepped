@@ -150,10 +150,11 @@ if os.getenv("PREPPED_HARVEST") then
   C_Item.GetItemInfo = function(id)
     local g = game[id]
     if not (g and asked[id]) then return nil end
-    return g.name, "item:" .. id, 4, 66, 60, "Armor", "Leather", 1, g.slot
+    return g.name, "item:" .. id, 4, 66, 60, "Armor", "Leather", 1, g.slot, nil, 0, 4, 2, 1, 0, 801
   end
+  C_Item.GetItemSetInfo = function(setID) return "Feralheart Guardian" end
   C_Item.statsFor = function(link) local g = game[tonumber(link:match("item:(%d+)"))]; return g and g.raw or {} end
-  _G.C_TooltipInfo = { GetItemByID = function(id) return { lines = { { leftText = game[id] and game[id].name }, { leftText = "Classes: Druid" } } } end }
+  _G.C_TooltipInfo = { GetItemByID = function(id) return { lines = { { leftText = game[id] and game[id].name }, { leftText = "Classes: Druid" }, { leftText = "(2) Set: +200 Armor." } } } end }
   _G.LOCALIZED_CLASS_NAMES_MALE = { DRUID = "Druid", WARRIOR = "Warrior" }
   _G.GetBuildInfo = function() return "1.60.1" end
   local tick
@@ -162,6 +163,8 @@ if os.getenv("PREPPED_HARVEST") then
   local n = 0
   while not tick.t.cancelled and n < 1000 do tick.fn(); n = n + 1 end
   runTimers()
+  local r = ns.db.harvest.records[226801]
+  print("set on Faceguard: " .. tostring(r and r.set and r.set.name) .. " · " .. tostring(r and r.set and r.set.bonuses and r.set.bonuses[1].text))
   print("harvested records: " .. (function() local c = 0 for _ in pairs(ns.db.harvest.records) do c = c + 1 end return c end)()
     .. " · merged for " .. token .. ": " .. tostring(ns.Core.foreverCount))
 end

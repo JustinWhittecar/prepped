@@ -25,9 +25,10 @@ end
 
 -- A harvested record. info: name, quality, itemLevel, minLevel, equipLoc (GetItemInfo's fields);
 -- raw: GetItemStats' table; classes: classesFrom's result or nil (any class).
-function ForeverItems.record(info, raw, classes)
+-- set (optional): { id, name, bonuses } from GetItemInfo's set ID and setBonusesFrom.
+function ForeverItems.record(info, raw, classes, set)
   return { name = info.name, quality = info.quality, ilvl = info.itemLevel, req = info.minLevel,
-    slot = info.equipLoc, classes = classes, raw = raw or {} }
+    slot = info.equipLoc, classes = classes, raw = raw or {}, set = set }
 end
 
 -- SimGear-shaped items ({name, slot, stats, req, ilvl, quality}) for one class: the records it can
@@ -79,4 +80,19 @@ function ForeverItems.costText(copper, costs)
     parts[#parts + 1] = money
   end
   return table.concat(parts, " + ")
+end
+
+-- A set's bonuses from an item's tooltip lines ("(2) Set: +200 Armor."): { {count, text} } in
+-- tooltip order, nil when there are none. Kept as text: scoring them is a separate step.
+function ForeverItems.setBonusesFrom(lines)
+  local out
+  for _, line in ipairs(lines or {}) do
+    local n, text
+    if type(line) == "string" then n, text = line:match("^%((%d+)%) Set: (.+)$") end
+    if n then
+      out = out or {}
+      out[#out + 1] = { count = tonumber(n), text = text }
+    end
+  end
+  return out
 end
