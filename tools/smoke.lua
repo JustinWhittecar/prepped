@@ -9,6 +9,13 @@ local svPath = arg[2]
 local raidMode = arg[3] == "raid"
 
 _G.SimGearForeverData = T.simgearGlobal(class)
+-- PREPPED_SV=<Prepped.lua saved variables>: use that character's settings (filters, picks).
+if os.getenv("PREPPED_SV") then
+  local env = {}
+  local chunk = assert(loadfile(os.getenv("PREPPED_SV")))
+  setfenv(chunk, env)()
+  _G.PreppedCharDB = env.PreppedCharDB
+end
 local data = SimGearForeverData[token]
 
 local svCons
@@ -135,3 +142,30 @@ SlashCmdList.PREPPED("debug")
 ns.UI.toggleOptions()
 PreppedOptions.scripts.OnShow(PreppedOptions)
 print("options window built")
+
+-- Optional 5th argument: Raid Ready's Data.lua. Prints each slot's Prepped BiS beside Raid Ready's
+-- target for the same spec (cat or bear), both scored in SimGear's units for that spec.
+if arg[5] then
+  local RR = {}
+  local chunk = assert(loadfile(arg[5]))
+  chunk("RaidReady", RR)
+  local rrSpec = (v.spec == "FERAL_BEAR") and "bear" or "cat"
+  local targets = RR.TARGETS[rrSpec]
+  local ids = {}
+  for _, list in pairs(targets) do for _, id in ipairs(list) do ids[#ids + 1] = id end end
+  local rep = ns.Core.bisReport(v.spec, ids)
+  local INVS = { head = { 1 }, neck = { 2 }, shoulder = { 3 }, back = { 15 }, chest = { 5 }, wrist = { 9 }, hands = { 10 },
+    waist = { 6 }, legs = { 7 }, feet = { 8 }, finger = { 11, 12 }, trinket = { 13, 14 }, mainhand = { 16 }, relic = { 18 } }
+  local order = { "head", "neck", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet", "finger", "trinket", "mainhand", "relic" }
+  print(("\n%-9s %-38s %6s | %-34s %6s"):format("slot", "Prepped BiS", "pts", "Raid Ready", "pts"))
+  for _, slot in ipairs(order) do
+    for k, inv in ipairs(INVS[slot]) do
+      local b = rep.slots[inv]
+      local rid = targets[slot] and targets[slot][k]
+      local r = rid and rep.items[rid]
+      local rname = rid and (r and r.name or ((RR.ITEMS and RR.ITEMS[rid] and RR.ITEMS[rid].name) or ("item " .. rid)) .. " [not in SimGear]") or "-"
+      print(("%-9s %-38s %6.1f | %-34s %6s"):format(slot, b and b.name or "-", b and b.points or 0, rname:sub(1, 34),
+        r and ("%.1f"):format(r.points) or "-"))
+    end
+  end
+end

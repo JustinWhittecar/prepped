@@ -226,6 +226,21 @@ local function bisFor(spec, set)
   return bisCache[key]
 end
 
+-- For /prep bis and comparisons: each slot's target with its points, and the points of any other
+-- items asked about (nil when SimGear doesn't have the item), in the spec's own units.
+function Core.bisReport(spec, ids)
+  local d = Core.data()
+  local set = d and weightSet(spec)
+  if not set then return nil end
+  local out = { slots = {}, items = {} }
+  for inv, b in pairs(bisFor(spec, set)) do out.slots[inv] = { id = b.id, name = b.item.name, points = b.points } end
+  for _, id in ipairs(ids or {}) do
+    local item = d.items[id]
+    out.items[id] = item and { name = item.name, slot = item.slot, points = points(id, item, set.ws) } or false
+  end
+  return out
+end
+
 local SINGLE = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 15, 18 }
 local PAIRS = { { 11, 12 }, { 13, 14 } }
 Core.SLOT_NAME = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [5] = "Chest", [6] = "Waist", [7] = "Legs", [8] = "Feet",
