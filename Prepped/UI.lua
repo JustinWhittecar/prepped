@@ -525,6 +525,8 @@ local function buildOptions()
   y = y - 24
   add(check(options, "Buff reminder in 5-player dungeons", function() return ns.db.buffsDungeon end,
     function(on) ns.db.buffsDungeon = on; Core.changed() end, y)); y = y - 24
+  add(check(options, "Loot alert in chat when a BiS item drops", function() return ns.db.lootAlert end,
+    function(on) ns.db.lootAlert = on end, y)); y = y - 24
   add(check(options, "Lock tracker and buff bar", function() return ns.db.locked end,
     function(on) ns.db.locked = on or nil end, y)); y = y - 24
   add(check(options, "Item tooltip line (Shift: other spec)", function() return ns.db.tooltip end,

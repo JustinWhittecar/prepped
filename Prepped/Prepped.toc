@@ -40,7 +40,10 @@ Tracker.lua
 SlotPanel.lua
 Buffs.lua
 Tooltip.lua
+Loot.lua
+Sync.lua
 Core.lua
 ItemTooltip.lua
+Watch.lua
 UI.lua
 SlotPanelUI.lua

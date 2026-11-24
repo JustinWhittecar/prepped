@@ -116,6 +116,8 @@ _G.unpack = unpack
 -- The character sheet the slot panel docks to (frame stubs, so hooks are no-ops).
 _G.CharacterFrame = CreateFrame("Frame", "CharacterFrame")
 _G.PaperDollFrame = CreateFrame("Frame", "PaperDollFrame")
+_G.time = os.time
+_G.GetTime = os.clock
 
 -- Load in .toc order, as the game does.
 local ns = {}
@@ -266,6 +268,36 @@ local sel = sp.rows[1] and ns.SlotPanel.defaultSlot(sp.rows)
 for _, r in ipairs(sp.rows) do
   if r.inv == sel then for _, l in ipairs(ns.SlotPanel.detail(r)) do print("    " .. l.text) end end
 end
+-- Sheet sync block (Watch.lua), as sync_sheet.py reads it.
+local sync = ns.cdb.sync
+if not sync then print("ERROR: no sync block written") os.exit(1) end
+local keys = {}
+for k, r in pairs(sync.ready) do
+  local en = 0 for _ in pairs(sync.enchants[k] or {}) do en = en + 1 end
+  keys[#keys + 1] = string.format("%s gear %.3f ench %.3f cons %.3f total %.3f, %d slots, %d enchants", k, r.gear, r.ench, r.cons,
+    r.total, #(sync.slots[k] or {}), en)
+end
+table.sort(keys)
+print("sync: spec " .. sync.spec .. ", " .. #sync.owned .. " owned BiS items")
+for _, l in ipairs(keys) do print("  sync " .. l) end
+
+-- Loot alert: a BiS item you don't own in the loot window and up for roll, then junk (no line).
+local target
+for _, st in ipairs(v.readiness and v.readiness.steps or {}) do
+  if st.id and not ns.Core.owns(st.id) then target = st.id break end
+end
+ns.db.lootAlert = true
+if target then
+  _G.GetNumLootItems = function() return 2 end
+  _G.GetLootSlotLink = function(i) return i == 1 and ("item:" .. target) or "item:2589" end
+  _G.GetLootRollItemLink = function() return "item:" .. target end
+  fire("LOOT_OPENED")
+  GetTime = function() return os.clock() + 60 end -- past the 30-second repeat guard
+  fire("START_LOOT_ROLL", 1)
+else
+  print("loot alert: no unowned BiS item to try")
+end
+ns.db.lootAlert = false
 
 -- Optional 5th argument: Raid Ready's Data.lua. Prints each slot's Prepped BiS beside Raid Ready's
 -- target for the same spec (cat or bear), both scored in SimGear's units for that spec.
