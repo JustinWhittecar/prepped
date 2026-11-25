@@ -9,6 +9,14 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
   say). Right-click a row in the slot panel for the best options, or `/prep pick <slot> <item link>`.
   Readiness, to-dos and set bonuses then count your pick; the slot panel marks it with a lock and
   still names Prepped's BiS. Kept per character and spec.
+- Tier 0.5 hand-ins, every class. A tier 0.5 BiS piece now says which quest gives it and what it
+  takes; its to-do names the dungeon set pieces (and samples) you still need, says when everything
+  is ready to turn in, or that the chain hasn't reached that quest yet. Hand-in items (Wildheart
+  Kilt, Lightforge Breastplate...) get a tooltip line naming the quest and the BiS pieces they lead to,
+  so they don't get vendored.
+
+### Fixed
+- Tier 0.5 pieces showed no usable source in the slot panel.
 
 ## [0.1.0-beta] - 2026-11-24
 

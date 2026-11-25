@@ -91,6 +91,8 @@ _G.GetInventoryItemLink = function(_, inv) return worn[inv] and ("item:" .. worn
 local bags = { [13452] = 2, [12820] = 10, [13446] = 5, [20452] = 3 }
 -- Raid Ready's synced counts (bags + bank) replace the made-up ones when given.
 if svCons then bags = {} for _, c in pairs(svCons) do for id, n in pairs(c) do bags[id] = n end end end
+-- PREPPED_BAGS="16720=1,16706=1": more bag/bank counts, e.g. tier 0.5 hand-ins.
+for id, n in (os.getenv("PREPPED_BAGS") or ""):gmatch("(%d+)=(%d+)") do bags[tonumber(id)] = tonumber(n) end
 _G.C_Item = {
   GetItemCount = function(id) return bags[id] or 0 end,
   GetItemInfoInstant = function(link)
@@ -299,7 +301,7 @@ if not other then
   ns.cdb.groupSpec[2] = other
 end
 print("tooltip lines (active " .. tostring(v.spec) .. ", other group " .. tostring(other) .. "):")
-for _, id in ipairs({ 226792, 13340, 15062, 13098, 11815, 999999, 13452 }) do
+for _, id in ipairs({ 226792, 13340, 15062, 13098, 11815, 999999, 13452, 16719, 16720 }) do
   shiftDown = false
   local plain = tipFor(id)
   shiftDown = true

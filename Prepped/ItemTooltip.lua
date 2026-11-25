@@ -102,6 +102,32 @@ function IT.otherSpec(active)
   if other and other ~= active then return other end
 end
 
+-- On a tier 0.5 hand-in (a Wildheart Kilt...): the quest that takes it and the BiS pieces it leads to,
+-- for this spec and the other talent group's. nil when it isn't one, or its quest is done.
+function IT.handInLine(id)
+  local d = Core.data()
+  if not d then return nil end
+  local spec = Core.view and Core.view.spec
+  local quests = ns.TradeIns.usedFor(ns.TradeInData, select(2, UnitClass("player")), UnitFactionGroup("player"), id)
+  for _, q in ipairs(quests) do
+    if not Core.tradeInDone(q) then
+      local targets, seen = {}, {}
+      for _, s in ipairs({ spec, spec and IT.otherSpec(spec) }) do
+        local ctx = context(s)
+        for _, bid in pairs(ctx and ctx.bisIDs or {}) do
+          local item = d.items[bid]
+          if item and item.tradeIn == q and not seen[bid] and not Core.owns(bid) then
+            seen[bid] = true
+            targets[#targets + 1] = item.name
+          end
+        end
+      end
+      table.sort(targets)
+      return ns.TradeIns.tooltipLine(q, targets)
+    end
+  end
+end
+
 local function secret(v) return issecretvalue and issecretvalue(v) end
 
 local function addLines(tooltip, data)
@@ -125,6 +151,7 @@ local function addLines(tooltip, data)
   local short = ns.Spec.SHORT
   add(IT.lineFor(spec, id, link, (shift and other) and (short[spec] or spec) or nil, lines))
   if shift and other then add(IT.lineFor(other, id, link, short[other] or other, lines)) end
+  add(IT.handInLine(id))
 end
 IT.addLines = addLines
 

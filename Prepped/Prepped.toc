@@ -30,6 +30,7 @@ data\Excluded.lua
 data\Attunements.lua
 data\Consumables.lua
 data\ForeverItems.lua
+data\TradeIns.lua
 data\VendorSources.lua
 data\Sources.lua
 data\Overrides.lua
@@ -37,6 +38,7 @@ data\Weights.lua
 SimGear.lua
 Backup.lua
 ForeverItems.lua
+TradeIns.lua
 Effects.lua
 Weights.lua
 Readiness.lua

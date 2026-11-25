@@ -259,4 +259,5 @@ def main(dump, crafted_file):
     print("item rows %d, reputation %d (item %d, vendor listing %d, quest %d), crafted %d, profession %d"
           % (len(names), len(reputation), len(rep_vendor), len(rep_listing), len(rep_quest), len(crafted), len(profession)))
 
-main(sys.argv[1], sys.argv[2])
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2])

@@ -70,6 +70,19 @@ function Core.withForeverItems(items, token)
   local extra = ns.ForeverItems.forClass(records, token, items, function(raw, loc)
     return ns.Stats.addWeaponDps((ns.Stats.normalize(raw)), loc)
   end)
+  -- Tier 0.5 pieces (every Forever set is one): the server sends no source, so the quest that gives
+  -- each is its source, and the to-do says what it still takes.
+  local side = UnitFactionGroup and UnitFactionGroup("player")
+  Core.tradeInPieces = {}
+  for id, item in pairs(extra) do
+    local q = records[id].set and ns.TradeIns.forSlot(ns.TradeInData, token, side, item.slot)
+    if q then
+      item.sources, item.tradeIn = { { kind = "forever", text = ns.TradeIns.sourceText(q) } }, q
+      local pieces = Core.tradeInPieces[q] or {}
+      pieces[#pieces + 1] = id
+      Core.tradeInPieces[q] = pieces
+    end
+  end
   local out = items
   if next(extra) then
     out = {}
@@ -450,7 +463,9 @@ local function gearPart(spec, set)
     if gain <= 0 or wears(b.id) then return end
     local name = b.item.name or ("item " .. b.id)
     local owned = itemCount(b.id, true) > 0
-    todos[#todos + 1] = { label = (owned and "Equip " or "") .. name, gain = gain, id = b.id, slot = Core.SLOT_NAME[inv] }
+    local label = (owned and "Equip " or "") .. name
+    if not owned and b.item.tradeIn then label = ns.TradeIns.label(name, Core.tradeInStatus(b.item.tradeIn)) end
+    todos[#todos + 1] = { label = label, gain = gain, id = b.id, slot = Core.SLOT_NAME[inv] }
   end
   for _, inv in ipairs(SINGLE) do
     local b = bis[inv]
@@ -735,6 +750,23 @@ function Core.owns(id)
   if itemCount(id, true) > 0 then return true end
   for inv = 1, 19 do if GetInventoryItemID("player", inv) == id then return true end end
   return false
+end
+
+-- A tier 0.5 quest is done when the game says so or you own any piece it gives (each quest gives all
+-- its slots at once); after that Deliana sells the other variants.
+function Core.tradeInDone(q)
+  if C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(q.id) then return true end
+  for _, id in ipairs(Core.tradeInPieces and Core.tradeInPieces[q] or {}) do
+    if Core.owns(id) then return true end
+  end
+  return false
+end
+
+-- Where a tier 0.5 quest stands: its hand-ins in bags and bank, and whether the chain has reached it.
+function Core.tradeInStatus(q)
+  local flagged = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+  local afterDone = q.after and flagged and flagged(q.after.id) or false
+  return ns.TradeIns.status(q, function(id) return itemCount(id, true) end, Core.tradeInDone(q), afterDone)
 end
 
 -- Refresh plumbing: changes are batched, then every listener redraws from one compute.
