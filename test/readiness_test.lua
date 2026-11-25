@@ -37,6 +37,23 @@ T.eq("steps ordered", r.steps[2].label, "Elixir of the Mongoose")
 T.near("second gain in %", r.steps[2].gain, 0.02)
 T.eq("a step keeps its item id", r.steps[3].id, 11815)
 
+-- A slot's enchant always comes after the slot's BiS item, however big its gain: the enchant goes on
+-- the new item. Steps for other slots keep their order.
+r = R.compute({
+  gear        = { have = 80, bis = 100 },
+  enchants    = { have = 0,  bis = 20 },
+  consumables = { have = 0,  bis = 0 },
+}, {
+  { label = "Crusader on main hand", gain = 6, inv = 16, kind = "enchant" },
+  { label = "Agility on bracers", gain = 5, inv = 9, kind = "enchant" },
+  { label = "Mongoose", gain = 3 },
+  { label = "Bonecrusher", gain = 2, inv = 16, kind = "gear", id = 18420 },
+})
+local order = {}
+for i, s in ipairs(r.steps) do order[i] = s.label end
+T.eq("enchant after its slot's BiS", table.concat(order, ", "), "Agility on bracers, Mongoose, Bonecrusher, Crusader on main hand")
+T.eq("next is not the moved enchant", r.next.label, "Agility on bracers")
+
 -- A part with nothing at BiS (no data, or no slots for the spec) has no share, never NaN.
 r = R.compute({
   gear        = { have = 50, bis = 100 },

@@ -465,7 +465,7 @@ local function gearPart(spec, set)
     local owned = itemCount(b.id, true) > 0
     local label = (owned and "Equip " or "") .. name
     if not owned and b.item.tradeIn then label = ns.TradeIns.label(name, Core.tradeInStatus(b.item.tradeIn)) end
-    todos[#todos + 1] = { label = label, gain = gain, id = b.id, slot = Core.SLOT_NAME[inv] }
+    todos[#todos + 1] = { label = label, gain = gain, id = b.id, slot = Core.SLOT_NAME[inv], inv = inv, kind = "gear" }
   end
   for _, inv in ipairs(SINGLE) do
     local b = bis[inv]
@@ -537,7 +537,7 @@ local function enchantPart(spec, set, worn)
         h = math.min(h, best)
         have, max = have + h, max + best
         if best - h > 0 then
-          todos[#todos + 1] = { label = ns.Enchants.shortName(r.best.row) .. " on " .. s.label:lower(), gain = best - h }
+          todos[#todos + 1] = { label = ns.Enchants.shortName(r.best.row) .. " on " .. s.label:lower(), gain = best - h, inv = s.inv, kind = "enchant" }
         end
         slots[#slots + 1] = { key = s.key, pct = h / best, enchanted = id ~= nil, link = w and w.link,
           text = id and enchantByID[id] and ns.Enchants.shortName(enchantByID[id]) or nil }

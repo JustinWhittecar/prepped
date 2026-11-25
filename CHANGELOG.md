@@ -15,6 +15,10 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
   Kilt, Lightforge Breastplate...) get a tooltip line naming the quest and the BiS pieces they lead to,
   so they don't get vendored.
 
+### Changed
+- A slot's enchant to-do now always comes after that slot's BiS item, since the enchant goes on the
+  new item.
+
 ### Fixed
 - Tier 0.5 pieces showed no usable source in the slot panel.
 
