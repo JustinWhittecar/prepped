@@ -70,6 +70,10 @@ local function stub()
     if k == "IsShown" then return function(self) return self.shown end end
     if k == "SetShown" then return function(self, v) self.shown = v end end
     if k == "GetFrameLevel" then return function() return 1 end end
+    -- Heights are kept, so the options window's layout can be checked.
+    if k == "SetHeight" then return function(self, h) self.height = h end end
+    if k == "SetSize" then return function(self, _, h) self.height = h end end
+    if k == "GetHeight" then return function(self) return self.height or 0 end end
     if k == "GetText" then return function(self) return self.text end end
     if k == "GetPoint" then return function() return "CENTER", nil, "CENTER", 0, 0 end end
     return function() end
@@ -82,6 +86,7 @@ _G.CreateFrame = function(_, name)
   return f
 end
 _G.C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
+_G.StaticPopupDialogs = {}
 _G.UnitClass = function() return class, token end
 _G.UnitLevel = function() return 60 end
 _G.UnitFactionGroup = function() return "Alliance" end
@@ -301,7 +306,7 @@ if not other then
   ns.cdb.groupSpec[2] = other
 end
 print("tooltip lines (active " .. tostring(v.spec) .. ", other group " .. tostring(other) .. "):")
-for _, id in ipairs({ 226792, 13340, 15062, 13098, 11815, 999999, 13452, 16719, 16720 }) do
+for _, id in ipairs({ 226792, 13340, 15062, 13098, 11815, 999999, 13452, 16719, 16720, 272408 }) do
   shiftDown = false
   local plain = tipFor(id)
   shiftDown = true

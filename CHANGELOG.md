@@ -18,6 +18,19 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 ### Changed
 - A slot's enchant to-do now always comes after that slot's BiS item, since the enchant goes on the
   new item.
+- Options: the Consumables section has an on/off switch. Off, consumables leave the score, the
+  tracker and the buff bar, and the section's settings hide. The raid night length moved into it.
+- The "Exclude unconfirmed consumables (Jujus)" option is gone: Jujus stay out until they're
+  confirmed on Forever.
+- Options window: a cleaner header (icon, name, version), the stat weights dropdown matches the
+  consumable dropdowns, the raid buff reminder moved into the Consumables section, the content
+  target note is gone, and the window's height follows its contents. A Restore defaults button
+  puts every option back (your slot picks and Custom weight values are kept).
+- Item tooltips show where to get items whose source Prepped supplies and SimGear doesn't: Pix
+  Xizzix's Undermine Reals stock, tier 0.5 quests and reputation vendors.
+
+### Removed
+- Buff reminders in 5-player dungeons. Prepped is for raids.
 
 ### Fixed
 - Tier 0.5 pieces showed no usable source in the slot panel.

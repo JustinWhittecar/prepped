@@ -57,6 +57,9 @@ local merged = F.addSources(sgItems, extra)
 T.eq("vendor source added", merged[272396].sources[1].text, "Pix Xizzix, Booty Bay · 100 Tarnished Undermine Reals")
 T.eq("SimGear's table untouched", #sgItems[272396].sources, 0)
 T.eq("own sources kept", merged[13340].sources[1].kind, "drop")
+-- Prepped's own sources are marked, so the item tooltip can show them (SimGear never does).
+T.eq("added source marked", merged[272396].addedSource, true)
+T.eq("SimGear's own not marked", merged[13340].addedSource, nil)
 T.eq("no new items", merged[99999], nil)
 
 -- A vendor's price as text: currencies and items it costs, then gold.

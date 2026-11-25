@@ -11,11 +11,24 @@ local P = "|cff33ccffPrepped:|r "
 function Core.print(msg) print(P .. msg) end
 
 -- Saved settings --------------------------------------------------------------------------------
-local DB_DEFAULTS = { showTracker = true, scale = 1, buffsRaid = true, buffsDungeon = false, tooltip = true }
-local CHAR_DEFAULTS = { collapsed = true, raidHours = 3 }
+local DB_DEFAULTS = { showTracker = true, scale = 1, buffsRaid = true, tooltip = true }
+local CHAR_DEFAULTS = { collapsed = true, raidHours = 3, trackConsumables = true }
 
 local function defaults(t, d)
   for k, v in pairs(d) do if t[k] == nil then t[k] = v end end
+end
+
+-- Every options-window setting back to its default (the Restore defaults button): display options,
+-- filters, consumables, raid night length, weights choice and spec choice. Slot picks, Custom weight
+-- values, positions and Forever harvests are kept.
+function Core.restoreDefaults()
+  for _, k in ipairs({ "showTracker", "scale", "buffsRaid", "tooltip", "lootAlert", "locked" }) do ns.db[k] = nil end
+  for _, k in ipairs({ "raidHours", "trackConsumables" }) do ns.cdb[k] = nil end
+  ns.cdb.filters, ns.cdb.consumables, ns.cdb.weights, ns.cdb.groupSpec = { unconfirmed = true }, {}, {}, {}
+  defaults(ns.db, DB_DEFAULTS)
+  defaults(ns.cdb, CHAR_DEFAULTS)
+  Core.settingsChanged()
+  Core.print("options restored to their defaults")
 end
 
 local function initDB()
@@ -26,8 +39,9 @@ local function initDB()
   defaults(ns.cdb, CHAR_DEFAULTS)
   ns.cdb.groupSpec = ns.cdb.groupSpec or {} -- talent group -> SimGear spec, chosen or confirmed
   ns.cdb.filters = ns.cdb.filters or {}     -- off by default, but for unconfirmed consumables
-  -- Consumables nobody has confirmed on Forever (Jujus) stay out of the defaults until the player says.
-  if ns.cdb.filters.unconfirmed == nil then ns.cdb.filters.unconfirmed = true end
+  -- Consumables nobody has confirmed on Forever (Jujus) stay out until someone does: no option for it.
+  ns.cdb.filters.unconfirmed = true
+  ns.db.buffsDungeon = nil -- the dungeon buff reminder is gone (raids only)
   ns.cdb.consumables = ns.cdb.consumables or {} -- [spec][slot] = item ID or "none"
   ns.cdb.weights = ns.cdb.weights or {} -- [spec] = "simgear" (nil), a preset id or "custom"
   ns.cdb.customWeights = ns.cdb.customWeights or {} -- [spec] = { [stat] = AP units }
@@ -599,10 +613,15 @@ function Core.consumablesFor(spec)
   return catalog, role
 end
 
+-- Consumables switched off (options): no part of the score, no to-dos, no buff bar. Stock is still
+-- counted for the sheet sync.
+function Core.consumablesOn() return ns.cdb.trackConsumables ~= false end
+
 local function consumablePlan(spec, set, inRaid)
   local catalog = Core.consumablesFor(spec)
   local stock, auras = {}, nil
   for _, e in ipairs(catalog) do stock[e.id] = itemCount(e.id, true) end
+  if not Core.consumablesOn() then return { have = 0, bis = 0, rows = {} }, {}, stock end
   if inRaid then
     auras = {}
     for _, e in ipairs(catalog) do if e.family ~= "potion" then auras[e.id] = buffStatus(e) end end
@@ -711,7 +730,7 @@ function Core.compute()
   view.consumableRows = plan.rows
   view.readiness, view.rows, view.set = r, rows, set
   view.slotData = { bis = bisFor(spec, set), auto = bisFor(spec, set, true), worn = scored, total = gear.bis + ench.bis + plan.bis }
-  if inRaid or (inInstance and kind == "party") then
+  if inRaid then
     local raidPlan, raidShown = consumablePlan(spec, set, true)
     local now = ns.Readiness.compute({ gear = gear, enchants = ench, consumables = { have = raidPlan.have, bis = raidPlan.bis } })
     state.raidNow = now.pct

@@ -128,6 +128,15 @@ function IT.handInLine(id)
   end
 end
 
+-- Where to get an item whose source Prepped supplies (Pix Xizzix's Undermine stock, tier 0.5 quests,
+-- reputation vendors): SimGear has none for these, so no other tooltip says. nil for the rest.
+function IT.sourceLine(id)
+  local d = Core.data()
+  local item = d and d.items[id]
+  if not (item and item.addedSource) then return nil end
+  return "Source: " .. ns.SlotPanel.sourcesText(item)
+end
+
 local function secret(v) return issecretvalue and issecretvalue(v) end
 
 local function addLines(tooltip, data)
@@ -152,6 +161,8 @@ local function addLines(tooltip, data)
   add(IT.lineFor(spec, id, link, (shift and other) and (short[spec] or spec) or nil, lines))
   if shift and other then add(IT.lineFor(other, id, link, short[other] or other, lines)) end
   add(IT.handInLine(id))
+  local src = IT.sourceLine(id)
+  if src then tooltip:AddLine(src, 0.8, 0.8, 0.8, true) end
 end
 IT.addLines = addLines
 

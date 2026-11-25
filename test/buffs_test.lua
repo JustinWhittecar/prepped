@@ -20,10 +20,10 @@ T.eq("raid: missing only", names(B.missing({ instance = "raid", slots = slots(),
 T.eq("open world: none", #B.missing({ instance = "none", slots = slots(), stock = {} }), 0)
 T.eq("in combat: none", #B.missing({ instance = "raid", inCombat = true, slots = slots(), stock = {} }), 0)
 
--- Dungeons: off by default; with the option on, everything but the flask (raid only).
+-- Raids only: Prepped never reminds in 5-player dungeons (that is DungeonKit's job), whatever is passed.
 local noFlask = { { slot = "flask", item = FLASK, have = 0, need = 1 }, { slot = "agility", item = MONGOOSE, have = 0, need = 1 } }
-T.eq("dungeon, option off: none", #B.missing({ instance = "party", slots = noFlask, stock = {} }), 0)
-T.eq("dungeon, option on: no flask", names(B.missing({ instance = "party", dungeons = true, slots = noFlask, stock = {} })), "Elixir of the Mongoose")
+T.eq("dungeon: none", #B.missing({ instance = "party", slots = noFlask, stock = {} }), 0)
+T.eq("dungeon, old option set: still none", #B.missing({ instance = "party", dungeons = true, slots = noFlask, stock = {} }), 0)
 T.eq("raid asks for the flask", names(B.missing({ instance = "raid", slots = noFlask, stock = {} })), "Flask of the Titans, Elixir of the Mongoose")
 
 -- An unreadable buff is unknown and never nags; potions are stock only, never reminded.

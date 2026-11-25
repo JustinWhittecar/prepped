@@ -225,8 +225,7 @@ function UI.refreshBuffs(view)
   if view and view.buffSlots and ns.db.buffsRaid and not UnitIsDeadOrGhost("player") then
     local stock = {}
     for _, s in ipairs(view.buffSlots) do if s.item then stock[s.item.id] = C_Item.GetItemCount(s.item.id) or 0 end end
-    list = ns.Buffs.missing({ instance = view.instance, slots = view.buffSlots, stock = stock, inCombat = false,
-      dungeons = ns.db.buffsDungeon })
+    list = ns.Buffs.missing({ instance = view.instance, slots = view.buffSlots, stock = stock, inCombat = false })
   end
   for _, b in ipairs(buffButtons) do b:Hide() end
   if #list == 0 then holder:Hide(); return end
@@ -324,8 +323,23 @@ local function choose(id)
   Core.settingsChanged()
 end
 
--- A dropdown: the button shows the choice; clicking opens the list under it.
+-- A dropdown: the game's own (WowStyle1DropdownTemplate, as the consumable picks use) where this
+-- client has it; else a button that opens a list under it.
 function UI.weightsDropdown(parent, x, y)
+  local ok, menu = pcall(CreateFrame, "DropdownButton", nil, parent, "WowStyle1DropdownTemplate")
+  if ok and menu and menu.SetupMenu then
+    menu:SetPoint("TOPLEFT", x, y)
+    menu:SetWidth(260)
+    menu.refresh = function()
+      local spec = Core.spec()
+      local choices = spec and ns.Weights.choices(spec, ns.WeightPresets) or {}
+      menu:SetupMenu(function(_, root)
+        local function isCurrent(id) return (spec and ns.cdb.weights[spec] or "simgear") == id end
+        for _, c in ipairs(choices) do root:CreateRadio(c.name, isCurrent, choose, c.id) end
+      end)
+    end
+    return menu
+  end
   local dd = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
   dd:SetSize(290, 22)
   dd:SetPoint("TOPLEFT", x, y)
@@ -482,6 +496,17 @@ function UI.weightsPanel(parent)
   return panel
 end
 
+-- Restore defaults: every setting in the options window back to how a new character starts. Your
+-- per-slot picks (slot panel) and Custom weight values are kept; positions have their own button.
+-- Only a new key: assigning the StaticPopupDialogs global itself, even to its own value, taints it and
+-- the game then blocks Blizzard actions in Prepped's name.
+StaticPopupDialogs["PREPPED_RESTORE_DEFAULTS"] = {
+  text = "Restore Prepped's options to their defaults?\n\nYour slot picks and Custom weight values are kept.",
+  button1 = YES or "Yes", button2 = NO or "No",
+  OnAccept = function() Core.restoreDefaults() end,
+  timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+}
+
 local function buildOptions()
   options = CreateFrame("Frame", "PreppedOptions", UIParent, "BackdropTemplate")
   backdrop(options)
@@ -497,14 +522,30 @@ local function buildOptions()
   options:SetClampedToScreen(true)
   tinsert(UISpecialFrames, "PreppedOptions") -- Escape closes it
   local close = CreateFrame("Button", nil, options, "UIPanelCloseButton")
-  close:SetPoint("TOPRIGHT", 2, 2)
-  local title = text(options, 15, 0.2, 0.8, 1)
-  title:SetPoint("TOPLEFT", 12, -10)
-  title:SetText("Prepped " .. (C_AddOns.GetAddOnMetadata(ADDON, "Version") or ""))
+  close:SetPoint("TOPRIGHT", -4, -4)
+  -- Header: the addon's icon and name, the version beside it (none in a source checkout, where the
+  -- toc still says @project-version@), and a rule under it.
+  local icon = options:CreateTexture(nil, "ARTWORK")
+  icon:SetSize(24, 24)
+  icon:SetPoint("TOPLEFT", 12, -12)
+  icon:SetTexture("Interface\\Icons\\INV_Potion_93")
+  icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  local title = text(options, 16, 0.2, 0.8, 1)
+  title:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+  title:SetText("Prepped")
+  local version = C_AddOns.GetAddOnMetadata(ADDON, "Version") or ""
+  local ver = text(options, 11, 0.55, 0.55, 0.55)
+  ver:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 6, 1)
+  ver:SetText(version:find("^@") and "dev build" or version)
+  local rule = options:CreateTexture(nil, "ARTWORK")
+  rule:SetColorTexture(1, 1, 1, 0.12)
+  rule:SetHeight(1)
+  rule:SetPoint("TOPLEFT", 12, -44)
+  rule:SetPoint("TOPRIGHT", -12, -44)
 
   local widgets = {}
   local function add(w) widgets[#widgets + 1] = w; return w end
-  local y = -36
+  local y = -54
 
   heading(options, "Character", y); y = y - 22
   local specBtn = add(button(options, "", function()
@@ -523,34 +564,41 @@ local function buildOptions()
     local spec = Core.spec()
     specBtn:SetText("Talent group " .. group .. ": " .. (ns.Spec.NAME[spec] or spec or "?") .. (chosen and "" or " (detected)"))
   end
-  y = y - 26
-  local note = text(options, 11, 0.6, 0.6, 0.6)
-  note:SetPoint("TOPLEFT", 18, y)
-  note:SetText("Content target: Pre-raid (raids come once their loot data exists)")
-  y = y - 20
+  y = y - 30
   -- Stat weights for the spec: a dropdown of SimGear's simmed ones, the presets and Custom; Custom
   -- opens the weights panel beside this window.
   local label = text(options, 12)
   label:SetPoint("TOPLEFT", 18, y - 4)
   label:SetText("Stat weights")
-  add(UI.weightsDropdown(options, 110, y))
+  add(UI.weightsDropdown(options, 112, y))
   y = y - 30
   add(UI.weightsPanel(options)) -- refreshed with the window: shown only while Custom is chosen
 
   heading(options, "Obtainable (BiS leaves these out)", y); y = y - 22
   for _, f in ipairs({ { "reputation", "Exclude reputation items" }, { "profession", "Exclude profession bind-on-pickup items" },
-    { "pvp", "Exclude PvP rank items" }, { "darkmoon", "Exclude Darkmoon Faire items" },
-    { "unconfirmed", "Exclude unconfirmed consumables (Jujus)" } }) do
+    { "pvp", "Exclude PvP rank items" }, { "darkmoon", "Exclude Darkmoon Faire items" } }) do
     add(check(options, f[2], function() return ns.cdb.filters[f[1]] == true end,
       function(on) ns.cdb.filters[f[1]] = on == true; Core.settingsChanged() end, y))
     y = y - 24
   end
 
-  heading(options, "Score", y); y = y - 22
-  local hoursLabel = text(options, 12)
+  -- Consumables: a switch, and under it (shown only while it is on) the raid night length and the
+  -- picks. Everything after the section sits in `rest`, which moves up when the body hides.
+  heading(options, "Consumables", y); y = y - 22
+  add(check(options, "Count consumables (score, to-dos, raid buff bar)", function() return Core.consumablesOn() end,
+    function(on) ns.cdb.trackConsumables = on; Core.settingsChanged() end, y))
+  y = y - 28
+  local consTop = y
+  local consBody = CreateFrame("Frame", nil, options)
+  consBody:SetPoint("TOPLEFT", 0, consTop)
+  consBody:SetSize(420, 1)
+  local rest = CreateFrame("Frame", nil, options)
+  rest:SetSize(420, 1)
+  y = 0 -- consBody's own coordinates from here
+  local hoursLabel = text(consBody, 12)
   hoursLabel:SetPoint("TOPLEFT", 18, y - 4)
   hoursLabel:SetText("Raid night length (hours):")
-  local hours = CreateFrame("EditBox", nil, options, "InputBoxTemplate")
+  local hours = CreateFrame("EditBox", nil, consBody, "InputBoxTemplate")
   hours:SetSize(50, 20)
   hours:SetPoint("LEFT", hoursLabel, "RIGHT", 10, 0)
   hours:SetAutoFocus(false)
@@ -568,9 +616,16 @@ local function buildOptions()
   hours:SetScript("OnEditFocusLost", applyHours)
   hours:SetScript("OnEscapePressed", function(self) self:SetText(ns.cdb.raidHours); self:ClearFocus() end)
   add({ refresh = function() if not hours:HasFocus() then hours:SetText(ns.cdb.raidHours) end end })
-  y = y - 30
-
-  heading(options, "Consumables (buffs of one stat don't stack)", y); y = y - 24
+  y = y - 28
+  add(check(consBody, "Buff reminder in raids", function() return ns.db.buffsRaid end,
+    function(on) ns.db.buffsRaid = on; Core.changed() end, y))
+  button(consBody, "Test", function() UI.buffTest() end, 260, y, 60)
+  y = y - 28
+  local stackNote = text(consBody, 11, 0.6, 0.6, 0.6)
+  stackNote:SetPoint("TOPLEFT", 18, y)
+  stackNote:SetText("Buffs of one stat don't stack: one pick per stat.")
+  y = y - 20
+  local rowsTop = y
   -- One row per choice: flask, then each stat your buffs raise (an elixir and a scroll of one stat
   -- conflict), then food and weapon. A dropdown each (Baganator's API, so present on Forever); a
   -- click-to-cycle button stands in if this client has no dropdown template.
@@ -582,12 +637,12 @@ local function buildOptions()
     Core.changed()
   end
   for i = 1, MAX_ROWS do
-    local label = text(options, 12)
+    local label = text(consBody, 12)
     label:SetPoint("TOPLEFT", 18, y - (i - 1) * 26 - 5)
     label:SetWidth(90)
-    local ok, d = pcall(CreateFrame, "DropdownButton", nil, options, "WowStyle1DropdownTemplate")
+    local ok, d = pcall(CreateFrame, "DropdownButton", nil, consBody, "WowStyle1DropdownTemplate")
     if not (ok and d and d.SetupMenu) then
-      d = button(options, "", function(self)
+      d = button(consBody, "", function(self)
         local v = Core.view
         if not (v and v.spec and self.key) then return end
         local list = { false }
@@ -651,6 +706,16 @@ local function buildOptions()
     local list, pts = {}, nil
     if spec and ws then list, pts = choices(spec, ws) end
     local picks = spec and ns.cdb.consumables[spec] or {}
+    -- Off: the body hides and the rest of the window moves up under the switch.
+    local on = Core.consumablesOn()
+    consBody:SetShown(on)
+    rest:ClearAllPoints()
+    if on then
+      consBody:SetHeight(-rowsTop + math.min(#list, MAX_ROWS) * 26 + 8)
+      rest:SetPoint("TOPLEFT", consBody, "BOTTOMLEFT")
+    else
+      rest:SetPoint("TOPLEFT", options, "TOPLEFT", 0, consTop)
+    end
     for i, row in ipairs(consRows) do
       local c, d = list[i], row.d
       if c then
@@ -689,36 +754,32 @@ local function buildOptions()
       end
     end
   end })
-  y = y - MAX_ROWS * 26 - 8
-
-  heading(options, "Display", y); y = y - 22
-  add(check(options, "Show tracker", function() return ns.db.showTracker end,
+  y = 0 -- rest's own coordinates from here
+  heading(rest, "Display", y); y = y - 22
+  add(check(rest, "Show tracker", function() return ns.db.showTracker end,
     function(on) ns.db.showTracker = on; UI.refreshTracker(Core.view) end, y)); y = y - 24
-  add(check(options, "Buff reminder in raids", function() return ns.db.buffsRaid end,
-    function(on) ns.db.buffsRaid = on; Core.changed() end, y))
-  button(options, "Test", function() UI.buffTest() end, 260, y, 60)
-  y = y - 24
-  add(check(options, "Buff reminder in 5-player dungeons", function() return ns.db.buffsDungeon end,
-    function(on) ns.db.buffsDungeon = on; Core.changed() end, y)); y = y - 24
-  add(check(options, "Loot alert in chat when a BiS item drops", function() return ns.db.lootAlert end,
+  add(check(rest, "Loot alert in chat when a BiS item drops", function() return ns.db.lootAlert end,
     function(on) ns.db.lootAlert = on end, y)); y = y - 24
-  add(check(options, "Lock tracker and buff bar", function() return ns.db.locked end,
+  add(check(rest, "Lock tracker and buff bar", function() return ns.db.locked end,
     function(on) ns.db.locked = on or nil end, y)); y = y - 24
-  add(check(options, "Item tooltip line (Shift: other spec)", function() return ns.db.tooltip end,
+  add(check(rest, "Item tooltip line (Shift: other spec)", function() return ns.db.tooltip end,
     function(on) ns.db.tooltip = on end, y)); y = y - 26
-  local scale = add(button(options, "", function()
+  local scale = add(button(rest, "", function()
     ns.db.scale = cycle({ 0.8, 0.9, 1, 1.1, 1.25, 1.5 }, ns.db.scale)
     UI.refreshTracker(Core.view)
   end, 16, y, 140))
   scale.refresh = function() scale:SetText("Tracker scale: " .. ns.db.scale) end
-  button(options, "Reset positions", function() UI.resetPositions() end, 164, y, 140)
-  y = y - 30
+  button(rest, "Reset positions", function() UI.resetPositions() end, 164, y, 140)
+  y = y - 26
+  button(rest, "Restore defaults", function() StaticPopup_Show("PREPPED_RESTORE_DEFAULTS") end, 16, y, 140)
+  y = y - 32
 
-  heading(options, "About", y); y = y - 18
-  local about = text(options, 11, 0.75, 0.75, 0.75)
+  heading(rest, "About", y); y = y - 18
+  local about = text(rest, 11, 0.75, 0.75, 0.75)
   about:SetPoint("TOPLEFT", 16, y)
   about:SetWidth(390)
   about:SetWordWrap(true)
+  local aboutTop = -y
   options.about = about
 
   options.refresh = function()
@@ -728,7 +789,10 @@ local function buildOptions()
     options.about:SetText("Gear data and scoring: SimGear Forever" .. (d and d.generated and (" (weights " .. d.generated .. ")") or "")
       .. ", simmed on the MythicSim engine. Sources: cMaNGOS classic-db. "
       .. "Status: " .. ((v and v.state and v.state.badge) or "?")
-      .. ". Issues: github.com (repo to come).")
+      .. ". Issues: github.com/JustinWhittecar/prepped")
+    -- The bottom follows the About text as it wraps, with the same margin as the sides.
+    rest:SetHeight(aboutTop + math.ceil(about:GetStringHeight() or 0) + 14)
+    options:SetHeight(-consTop + (consBody:IsShown() and consBody:GetHeight() or 0) + rest:GetHeight())
   end
   options:SetScript("OnShow", options.refresh)
   options:Hide()

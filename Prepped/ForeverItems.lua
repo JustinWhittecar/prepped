@@ -41,7 +41,7 @@ function ForeverItems.forClass(records, token, have, normalize)
   for id, r in pairs(records or {}) do
     if not have[id] and r.classes and r.classes[token] and r.slot and r.slot ~= "" then
       out[id] = { name = r.name, slot = r.slot, stats = normalize(r.raw, r.slot), req = r.req, ilvl = r.ilvl,
-        quality = r.quality, sources = { { kind = "forever", text = r.source } }, forever = true }
+        quality = r.quality, sources = { { kind = "forever", text = r.source } }, forever = true, addedSource = true }
     end
   end
   return out
@@ -59,6 +59,7 @@ function ForeverItems.addSources(items, extra)
       local copy = {}
       for k, v in pairs(item) do copy[k] = v end
       copy.sources = { src }
+      copy.addedSource = true -- Prepped's, not SimGear's: the item tooltip shows it
       changed[id] = copy
     end
   end

@@ -17,16 +17,20 @@ loot data for them exists.
   the raid night) and up to eight gear and enchant upgrades, each with the readiness it would add
   (`+3%`).
 - **Pre-raid BiS per slot**, picked with SimGear's own scoring. You can leave out reputation items,
-  profession bind-on-pickup items, PvP rank items, Darkmoon Faire items and consumables not yet
-  confirmed on Forever (Jujus; left out by default). Quest rewards that need a raid drop, and
-  AQ-war quests Forever doesn't have, are never picked. Forever's server-only tier 0.5 items, which
-  SimGear can't see, are included, and so are their set bonuses.
+  profession bind-on-pickup items, PvP rank items and Darkmoon Faire items. Raid loot, quest
+  rewards that need a raid drop, AQ-war quests Forever doesn't have and consumables not yet confirmed
+  on Forever (Jujus) are never picked. Forever's server-only tier 0.5 items, which SimGear can't see,
+  are included, and so are their set bonuses.
+- **Tier 0.5 hand-ins**, every class: a tier 0.5 piece names the quest that gives it, and its to-do
+  lists the dungeon set pieces you still need to hand in. The hand-in items get a tooltip line so
+  they don't get vendored.
 - **A consumable plan** sized to your raid night length (3 hours by default). Buffs of the same stat
-  don't stack, so you choose one per stat. Flask, food and weapon buffs are one choice each.
+  don't stack, so you choose one per stat. Flask, food and weapon buffs are one choice each. You can
+  switch consumables off in the options: the score is then gear and enchants only, with no
+  consumable to-dos and no buff bar.
 - **Attunement blockers**: a `Blocked:` line for Onyxia while you lack the Drakefire Amulet, with
   progress through the quest chain for your faction.
-- **Buff reminders**: a bar of missing consumable buffs in raids (and optionally in 5-player
-  dungeons), hidden in combat.
+- **Buff reminders**: a bar of missing consumable buffs in raids, hidden in combat.
 - **Stat weights per spec**: SimGear's simmed weights by default, a preset, or your own.
 - **Spec detection** from talents for each talent group, with a manual override.
 
