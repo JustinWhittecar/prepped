@@ -26,6 +26,7 @@ ignore:
   - test
   - tools
   - art
+  - docs
   - run_tests.sh
   - README.md
   - .pkgmeta
