@@ -60,6 +60,15 @@ T.eq("gains item", g[226792], 0.02)
 local n = 0 for _ in pairs(g) do n = n + 1 end
 T.eq("gains skip enchant steps", n, 1)
 
+-- A tier 0.5 hand-in (Wildheart Kilt): what it leads to and the quest, even though it isn't BiS itself.
+local quest = { quest = "Anthion's Parting Words", turnIn = "Deliana" }
+T.eq("hand-in drop", L.handInMessage("[Wildheart Kilt]", quest, { "Feralheart Epaulets", "Feralheart Walkers" }),
+  "[Wildheart Kilt] dropped: hand-in for Feralheart Epaulets, Feralheart Walkers (Anthion's Parting Words, Deliana)")
+T.eq("hand-in roll", L.handInMessage("[Wildheart Kilt]", quest, { "Feralheart Pauldrons" }, "roll"),
+  "[Wildheart Kilt] up for roll: hand-in for Feralheart Pauldrons (Anthion's Parting Words, Deliana)")
+T.eq("no BiS piece left to make: nothing", L.handInMessage("[Wildheart Kilt]", quest, {}), nil)
+T.eq("no quest: nothing", L.handInMessage("[Wildheart Kilt]", nil, { "x" }), nil)
+
 -- Dedupe: the same item within 30 seconds alerts once.
 local seen = {}
 T.eq("first alert", L.fresh(seen, 1, 100), true)

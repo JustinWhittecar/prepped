@@ -289,16 +289,13 @@ local function rightOverhang()
   return over
 end
 
--- Beside the character frame; beside Raid Ready's panel while both run side by side.
+-- Beside the character frame (or where you dragged it, relative to the frame).
 function SlotPanelUI.dock()
   if not panel then build() end
   panel:ClearAllPoints()
   local o = ns.db.slotPanelOffset
-  local rr = _G.RaidReadyPanel
   if o then
     panel:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", o[1], o[2])
-  elseif rr and rr.IsShown and rr:IsShown() then
-    panel:SetPoint("TOPLEFT", rr, "TOPRIGHT", 4, 0)
   else
     panel:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 4 + rightOverhang(), 0)
   end
@@ -322,7 +319,7 @@ local function onLogin()
   local host = _G.PaperDollFrame or CharacterFrame
   host:HookScript("OnShow", function()
     SlotPanelUI.dock()
-    -- Again once other addons (Raid Ready's panel, skins) have placed their frames.
+    -- Again once other addons (skins) have placed their frames.
     C_Timer.After(0.1, function() if host:IsShown() then SlotPanelUI.dock() end end)
   end)
   host:HookScript("OnHide", function() if panel then panel:Hide() end end)

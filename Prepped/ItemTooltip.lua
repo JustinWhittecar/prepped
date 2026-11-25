@@ -105,27 +105,13 @@ end
 -- On a tier 0.5 hand-in (a Wildheart Kilt...): the quest that takes it and the BiS pieces it leads to,
 -- for this spec and the other talent group's. nil when it isn't one, or its quest is done.
 function IT.handInLine(id)
-  local d = Core.data()
-  if not d then return nil end
   local spec = Core.view and Core.view.spec
-  local quests = ns.TradeIns.usedFor(ns.TradeInData, select(2, UnitClass("player")), UnitFactionGroup("player"), id)
-  for _, q in ipairs(quests) do
-    if not Core.tradeInDone(q) then
-      local targets, seen = {}, {}
-      for _, s in ipairs({ spec, spec and IT.otherSpec(spec) }) do
-        local ctx = context(s)
-        for _, bid in pairs(ctx and ctx.bisIDs or {}) do
-          local item = d.items[bid]
-          if item and item.tradeIn == q and not seen[bid] and not Core.owns(bid) then
-            seen[bid] = true
-            targets[#targets + 1] = item.name
-          end
-        end
-      end
-      table.sort(targets)
-      return ns.TradeIns.tooltipLine(q, targets)
-    end
-  end
+  if not spec then return nil end
+  local q, targets = Core.handIn(id, { spec, IT.otherSpec(spec) }, function(s)
+    local ctx = context(s)
+    return ctx and ctx.bisIDs
+  end)
+  return q and ns.TradeIns.tooltipLine(q, targets) or nil
 end
 
 -- Where to get an item whose source Prepped supplies (Pix Xizzix's Undermine stock, tier 0.5 quests,

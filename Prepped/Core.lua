@@ -46,15 +46,7 @@ local function initDB()
   ns.cdb.weights = ns.cdb.weights or {} -- [spec] = "simgear" (nil), a preset id or "custom"
   ns.cdb.customWeights = ns.cdb.customWeights or {} -- [spec] = { [stat] = AP units }
   ns.cdb.picks = ns.cdb.picks or {} -- [spec][inventory slot] = item ID: your pick in place of Prepped's BiS
-  -- Moving from Raid Ready: its talent-group choices, once.
-  local rr = _G.RaidReadyCharDB
-  if not ns.cdb.importedRaidReady and type(rr) == "table" and type(rr.groupSpec) == "table" then
-    local map = { cat = "FERAL_CAT", bear = "FERAL_BEAR" }
-    for g, s in pairs(rr.groupSpec) do
-      if map[s] and not ns.cdb.groupSpec[g] then ns.cdb.groupSpec[g] = map[s] end
-    end
-    ns.cdb.importedRaidReady = true
-  end
+  ns.cdb.importedRaidReady = nil -- left by the Raid Ready import (gone)
 end
 
 -- Class data --------------------------------------------------------------------------------------
@@ -218,11 +210,17 @@ end
 -- The spec scored now, and the choices to offer when talents don't settle it (nil when they do).
 -- A tree with two roles (Feral: Cat and Bear) always asks once per talent group.
 function Core.spec()
-  local token, group = classToken(), Core.talentGroup()
-  local chosen = ns.cdb.groupSpec[group]
+  local chosen = ns.cdb.groupSpec[Core.talentGroup()]
+  if chosen then return chosen, nil, "chosen" end
+  return Core.detectedSpec()
+end
+
+-- The spec the talents point to, whatever is chosen: spec, choices (when talents can't tell, as for a
+-- feral druid's cat or bear) and the reason.
+function Core.detectedSpec()
+  local token = classToken()
   local okPoints, points = pcall(talentPoints)
   local detected, reason = ns.Spec.infer(okPoints and points or nil, nil, token, { forms = { cat = knows(768) } })
-  if chosen then return chosen, nil, "chosen" end
   local c = ns.Classes.get(token)
   local tree = detected and ns.Spec.treeOf(detected, token)
   local rule = c and c.treeSpecs and tree and c.treeSpecs[tree]
@@ -787,6 +785,31 @@ function Core.tradeInStatus(q)
   local flagged = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
   local afterDone = q.after and flagged and flagged(q.after.id) or false
   return ns.TradeIns.status(q, function(id) return itemCount(id, true) end, Core.tradeInDone(q), afterDone)
+end
+
+-- A tier 0.5 hand-in item (Wildheart Kilt...): the first quest still to do that takes it, and the
+-- names of the BiS pieces it leads to for the given specs that you don't own yet, sorted. nil when it
+-- isn't a hand-in or its quests are done. bisIDsFor(spec): { [inv] = item ID } for that spec's BiS.
+function Core.handIn(id, specs, bisIDsFor)
+  local d = Core.data()
+  if not d then return nil end
+  local quests = ns.TradeIns.usedFor(ns.TradeInData, classToken(), UnitFactionGroup("player"), id)
+  for _, q in ipairs(quests) do
+    if not Core.tradeInDone(q) then
+      local targets, seen = {}, {}
+      for _, spec in ipairs(specs) do
+        for _, bid in pairs(bisIDsFor(spec) or {}) do
+          local item = d.items[bid]
+          if item and item.tradeIn == q and not seen[bid] and not Core.owns(bid) then
+            seen[bid] = true
+            targets[#targets + 1] = item.name
+          end
+        end
+      end
+      table.sort(targets)
+      return q, targets
+    end
+  end
 end
 
 -- Refresh plumbing: changes are batched, then every listener redraws from one compute.

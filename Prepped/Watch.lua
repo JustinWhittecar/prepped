@@ -50,6 +50,23 @@ local function alert(link, how)
     end
   end
   local msg = Loot.message(id, link, list, Core.owns(id), how)
+  -- Not BiS itself, but a tier 0.5 hand-in for a BiS piece (a Wildheart Kilt in Stratholme).
+  if not msg then
+    local specs = knownSpecs()
+    local q, targets = Core.handIn(id, specs, function(spec)
+      local rep = Core.bisReport(spec)
+      local ids = {}
+      for inv, b in pairs(rep and rep.slots or {}) do ids[inv] = b.id end
+      return ids
+    end)
+    -- Already holding enough of it (a second Wildheart Cowl): nothing to say.
+    if q then
+      for _, n in ipairs(Core.tradeInStatus(q).needs) do
+        if n.id == id and n.have >= n.n then q = nil end
+      end
+    end
+    msg = Loot.handInMessage(link, q, targets, how)
+  end
   if msg then Core.print(msg) else seen[id] = nil end
 end
 

@@ -5,7 +5,7 @@
 ## Version: @project-version@
 ## SavedVariables: PreppedDB
 ## SavedVariablesPerCharacter: PreppedCharDB
-## OptionalDeps: SimGearForever, RaidReady
+## OptionalDeps: SimGearForever
 ## IconTexture: Interface\Icons\INV_Potion_93
 ## AddonCompartmentFunc: Prepped_OnCompartmentClick
 ## AddonCompartmentFuncOnEnter: Prepped_OnCompartmentEnter

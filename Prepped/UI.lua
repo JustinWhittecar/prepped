@@ -548,21 +548,48 @@ local function buildOptions()
   local y = -54
 
   heading(options, "Character", y); y = y - 22
-  local specBtn = add(button(options, "", function()
-    local token = select(2, UnitClass("player"))
-    local list = {}
-    for _, s in ipairs(ns.Spec.specsOf(token)) do list[#list + 1] = s end
-    list[#list + 1] = false -- back to detected
-    local group = Core.talentGroup()
-    local nextSpec = cycle(list, ns.cdb.groupSpec[group] or false)
-    ns.cdb.groupSpec[group] = nextSpec or nil
+  -- The spec for this talent group: detected from talents, or one you choose. The same dropdown as the
+  -- weights and consumables; a click-to-cycle button where this client has no dropdown template.
+  local specLabel = text(options, 12)
+  specLabel:SetPoint("TOPLEFT", 18, y - 4)
+  local function setSpec(spec)
+    ns.cdb.groupSpec[Core.talentGroup()] = spec or nil
     Core.settingsChanged()
-  end, 16, y, 260))
-  specBtn.refresh = function()
-    local group = Core.talentGroup()
-    local chosen = ns.cdb.groupSpec[group]
-    local spec = Core.spec()
-    specBtn:SetText("Talent group " .. group .. ": " .. (ns.Spec.NAME[spec] or spec or "?") .. (chosen and "" or " (detected)"))
+  end
+  local function specList()
+    local list = {}
+    for _, s in ipairs(ns.Spec.specsOf(select(2, UnitClass("player")))) do list[#list + 1] = s end
+    return list
+  end
+  local ok, specMenu = pcall(CreateFrame, "DropdownButton", nil, options, "WowStyle1DropdownTemplate")
+  if ok and specMenu and specMenu.SetupMenu then
+    specMenu:SetPoint("TOPLEFT", 112, y)
+    specMenu:SetWidth(260)
+    add({ refresh = function()
+      local group = Core.talentGroup()
+      specLabel:SetText("Spec (group " .. group .. ")")
+      local chosen = ns.cdb.groupSpec[group]
+      -- What the talents say, whatever is chosen: the "detect" entry names it, or says they can't tell.
+      local auto, unsure = Core.detectedSpec()
+      local said = unsure and "talents can't tell" or (ns.Spec.NAME[auto] or auto or "unclear")
+      specMenu:SetupMenu(function(_, root)
+        local function isCurrent(v) return (chosen or false) == v end
+        root:CreateRadio("Detect from talents (" .. said .. ")", isCurrent, setSpec, false)
+        for _, s in ipairs(specList()) do root:CreateRadio(ns.Spec.NAME[s] or s, isCurrent, setSpec, s) end
+      end)
+    end })
+  else
+    local specBtn = add(button(options, "", function()
+      local list = specList()
+      list[#list + 1] = false -- back to detected
+      setSpec(cycle(list, ns.cdb.groupSpec[Core.talentGroup()] or false))
+    end, 112, y, 260))
+    specBtn.refresh = function()
+      local group = Core.talentGroup()
+      specLabel:SetText("Spec (group " .. group .. ")")
+      local spec = Core.spec()
+      specBtn:SetText((ns.Spec.NAME[spec] or spec or "?") .. (ns.cdb.groupSpec[group] and "" or " (detected)"))
+    end
   end
   y = y - 30
   -- Stat weights for the spec: a dropdown of SimGear's simmed ones, the presets and Custom; Custom

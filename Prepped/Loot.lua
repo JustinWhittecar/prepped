@@ -35,6 +35,14 @@ function Loot.message(id, link, specs, owned, how)
   return link .. (how == "roll" and " up for roll" or " dropped") .. ": BiS for " .. table.concat(parts, ", ")
 end
 
+-- A tier 0.5 hand-in that dropped: the BiS pieces it leads to (targets, names) and its quest
+-- (TradeIns data: quest, turnIn). nil when there's no quest or nothing left to make with it.
+function Loot.handInMessage(link, q, targets, how)
+  if not q or not targets or #targets == 0 then return nil end
+  return link .. (how == "roll" and " up for roll" or " dropped") .. ": hand-in for " .. table.concat(targets, ", ")
+    .. " (" .. q.quest .. ", " .. q.turnIn .. ")"
+end
+
 -- The specs to check: the active one first, then each talent group's chosen spec, once each.
 function Loot.knownSpecs(active, groupSpec)
   local out, seen = {}, {}

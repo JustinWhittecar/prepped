@@ -28,9 +28,15 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
   puts every option back (your slot picks and Custom weight values are kept).
 - Item tooltips show where to get items whose source Prepped supplies and SimGear doesn't: Pix
   Xizzix's Undermine Reals stock, tier 0.5 quests and reputation vendors.
+- The spec line in the options is a dropdown like the others; "Detect from talents" names what your
+  talents point to.
+- The loot alert also speaks up for tier 0.5 hand-ins: a Wildheart Kilt dropping says which of your
+  BiS pieces it leads to and the quest (not when you already hold one).
 
 ### Removed
 - Buff reminders in 5-player dungeons. Prepped is for raids.
+- Leftovers from Raid Ready, Prepped's private predecessor: docking beside its panel and the one-time
+  import of its spec choices.
 
 ### Fixed
 - Tier 0.5 pieces showed no usable source in the slot panel.

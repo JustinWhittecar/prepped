@@ -383,6 +383,12 @@ if target then
 else
   print("loot alert: no unowned BiS item to try")
 end
+-- A tier 0.5 hand-in (Wildheart Kilt for a druid, as PREPPED_BAGS leaves it): alerted for the pieces it
+-- makes; then one already held (PREPPED_BAGS 16720=1): nothing.
+_G.GetNumLootItems = function() return 2 end
+_G.GetLootSlotLink = function(i) return i == 1 and "item:16719" or "item:16720" end
+GetTime = function() return os.clock() + 120 end
+fire("LOOT_OPENED")
 ns.db.lootAlert = false
 
 -- Optional 5th argument: Raid Ready's Data.lua. Prints each slot's Prepped BiS beside Raid Ready's
