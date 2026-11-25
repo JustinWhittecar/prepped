@@ -21,6 +21,11 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 
 ### Fixed
 - Tier 0.5 pieces showed no usable source in the slot panel.
+- The profession filter missed gear that isn't crafted but needs a profession to use, such as the
+  Glimmering Mithril Insignia (a quest reward that needs Blacksmithing 225).
+- Raid loot could be picked as Pre-raid BiS: SimGear's stand-in items include a few raid drops
+  (Onyxia's Eskhandar's Collar, Ring of Binding and Shard of the Scale; Sapphiron Drape). Items whose
+  only source is a raid are never targets now.
 
 ## [0.1.0-beta] - 2026-11-24
 

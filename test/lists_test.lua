@@ -11,6 +11,9 @@ T.eq("vendor behind a condition: Legionnaire's Band (Warsong Outriders)", L.repu
 T.eq("Devilsaur Gauntlets are not a reputation item", L.reputation[15063], nil)
 T.eq("Devilsaur Gauntlets are not profession-locked (bind on equip)", L.profession[15063], nil)
 T.eq("Hand of Justice is not a reputation item", L.reputation[11815], nil)
+-- Not crafted, but only a blacksmith can wear it: a quest reward that needs Blacksmithing 225.
+T.eq("Glimmering Mithril Insignia needs Blacksmithing", L.profession[10418], true)
+T.eq("Hand of Justice needs no profession", L.profession[11815], nil)
 
 -- Darkmoon Faire: card deck trinkets and ticket prizes.
 T.eq("Darkmoon Card: Maelstrom", L.darkmoon[19289], true)

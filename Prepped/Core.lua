@@ -146,7 +146,7 @@ function Core.data()
   return data, dataProblem
 end
 
--- Items Forever doesn't offer before raids, whatever the filters: the generated raid-only list and
+-- Items Forever doesn't offer before raids, whatever the filters: raid loot, the generated raid-only list and
 -- the hand-kept exclusions.
 local unavailable
 local function unavailableItems()
@@ -159,6 +159,7 @@ local function unavailableItems()
   for id in pairs(d and ns.SimGear.dropsOnlyFrom(d.items, ns.WorldBosses or {}) or {}) do unavailable[id] = true end
   for id in pairs(d and ns.SimGear.dropsOnlyFrom(d.items, ns.AbyssalCouncil or {}) or {}) do unavailable[id] = true end
   for id in pairs(d and ns.SimGear.cmangosQuestOnly(d.items) or {}) do unavailable[id] = true end
+  for id in pairs(d and ns.SimGear.raidOnly(d.items) or {}) do unavailable[id] = true end
   return unavailable
 end
 

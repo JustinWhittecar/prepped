@@ -172,4 +172,18 @@ T.eq("Forever's client quest kept", q[2], nil)
 T.eq("another source kept", q[3], nil)
 T.eq("no sources: not this rule's call", q[4], nil)
 
+-- Raid loot: items whose every source is in a raid (Onyxia's Eskhandar's Collar) aren't Pre-raid gear.
+local raid = S.raidOnly({
+  [18205] = { name = "Eskhandar's Collar", sources = { { type = "boss", id = 10184, instance = "raid" } } },
+  [2] = { name = "Raid or dungeon", sources = { { type = "boss", instance = "raid" }, { type = "boss", instance = "dungeon" } } },
+  [3] = { name = "Dungeon boss", sources = { { type = "boss", instance = "dungeon" } } },
+  [4] = { name = "No sources", sources = {} },
+  [5] = { name = "Quest", sources = { { type = "quest" } } },
+})
+T.eq("raid only", raid[18205], true)
+T.eq("also in a dungeon: kept", raid[2], nil)
+T.eq("dungeon kept", raid[3], nil)
+T.eq("no sources: not this rule's call", raid[4], nil)
+T.eq("quest kept", raid[5], nil)
+
 T.done()
