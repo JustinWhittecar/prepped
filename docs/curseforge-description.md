@@ -4,6 +4,8 @@
 
 Built for **World of Warcraft: Forever**, on top of [SimGear Forever](https://www.curseforge.com/wow/addons/simgearforever)'s gear scores and item data.
 
+**Source code, issues and releases:** [github.com/JustinWhittecar/prepped](https://github.com/JustinWhittecar/prepped)
+
 ## Features
 
 ### One score, one to-do list
