@@ -4,6 +4,10 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 
 ## [Unreleased]
 
+## [0.3.0-beta] - 2026-11-25
+
+A three-way buff reminder bar, back in 5-player dungeons, and tier 0.5 to-dos in quest-chain order.
+
 ### Changed
 - The buff reminder bar has three settings: Never show, In instances only (the default) or Always
   show (anywhere out of combat). They replace the "Buff reminder in raids" check and its Test button,
