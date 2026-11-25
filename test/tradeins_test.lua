@@ -56,4 +56,9 @@ T.eq("tooltip with targets", TI.tooltipLine(used[1], { "Feralheart Epaulets", "F
   "Prepped: hand in at Anthion's Parting Words (Deliana) for Feralheart Epaulets, Feralheart Walkers")
 T.eq("tooltip without targets", TI.tooltipLine(used[1], {}), "Prepped: tier 0.5 hand-in for Anthion's Parting Words (Deliana)")
 
+-- Every quest in the data has a place in the chain.
+for token, qs in pairs(data) do
+  for _, q in ipairs(qs) do T.eq(token .. " " .. q.quest .. " in the chain", type(TI.CHAIN[q.quest]), "number") end
+end
+
 T.done()

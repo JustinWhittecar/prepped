@@ -54,6 +54,24 @@ for i, s in ipairs(r.steps) do order[i] = s.label end
 T.eq("enchant after its slot's BiS", table.concat(order, ", "), "Agility on bracers, Mongoose, Bonecrusher, Crusader on main hand")
 T.eq("next is not the moved enchant", r.next.label, "Agility on bracers")
 
+-- Tier 0.5 pieces come from one quest chain: they take their turns in chain order (chain = the quest's
+-- step), in the places the gain sort gave tier 0.5 steps. Other steps keep their places.
+r = R.compute({
+  gear        = { have = 80, bis = 100 },
+  enchants    = { have = 0,  bis = 20 },
+  consumables = { have = 0,  bis = 0 },
+}, {
+  { label = "Feralheart Cap", gain = 8, inv = 1, kind = "gear", chain = 4 },
+  { label = "Timbermaw Tunic", gain = 6, inv = 5, kind = "gear" },
+  { label = "Feralheart Epaulets", gain = 2, inv = 3, kind = "gear", chain = 3 },
+  { label = "Agility on head", gain = 1.5, inv = 1, kind = "enchant" },
+  { label = "Feralheart Walkers", gain = 1, inv = 8, kind = "gear", chain = 3 },
+})
+order = {}
+for i, s in ipairs(r.steps) do order[i] = s.label end
+T.eq("tier 0.5 in chain order", table.concat(order, ", "),
+  "Feralheart Epaulets, Timbermaw Tunic, Feralheart Walkers, Feralheart Cap, Agility on head")
+
 -- A part with nothing at BiS (no data, or no slots for the spec) has no share, never NaN.
 r = R.compute({
   gear        = { have = 50, bis = 100 },

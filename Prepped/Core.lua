@@ -481,7 +481,8 @@ local function gearPart(spec, set)
     local owned = itemCount(b.id, true) > 0
     local label = (owned and "Equip " or "") .. name
     if not owned and b.item.tradeIn then label = ns.TradeIns.label(name, Core.tradeInStatus(b.item.tradeIn)) end
-    todos[#todos + 1] = { label = label, gain = gain, id = b.id, slot = Core.SLOT_NAME[inv], inv = inv, kind = "gear" }
+    local chain = not owned and b.item.tradeIn and ns.TradeIns.CHAIN[b.item.tradeIn.quest] or nil
+    todos[#todos + 1] = { label = label, gain = gain, id = b.id, slot = Core.SLOT_NAME[inv], inv = inv, kind = "gear", chain = chain }
   end
   for _, inv in ipairs(SINGLE) do
     local b = bis[inv]

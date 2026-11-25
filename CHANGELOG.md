@@ -10,6 +10,8 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
   which also switched the tracker to the in-raid "Raid now" score. `/prep buffs never|instances|always`
   replaces `/prep buffs test`.
 - The buff reminder bar works in 5-player dungeons again, without the flask.
+- Tier 0.5 to-dos come in quest-chain order: the next quest's piece first, even when a later
+  quest's piece (the head, say) would gain more. Other to-dos keep their places.
 
 ## [0.2.0-beta] - 2026-11-25
 

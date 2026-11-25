@@ -8,6 +8,21 @@ local PARTS = { "gear", "enchants", "consumables" }
 
 -- A slot's enchant goes on the slot's BiS item, so it waits until after that item's step: each
 -- enchant step that would come first moves to just after it. Other steps keep their order.
+-- Tier 0.5 steps (chain = their quest's step in the chain) take the places the gain sort gave them,
+-- in chain order: the next quest's piece first, however big a later quest's gain.
+local function chainOrder(steps)
+  local at, chained = {}, {}
+  for i, s in ipairs(steps) do
+    if s.chain then at[#at + 1] = i; chained[#chained + 1] = { s = s, i = i } end
+  end
+  table.sort(chained, function(a, b)
+    if a.s.chain ~= b.s.chain then return a.s.chain < b.s.chain end
+    return a.i < b.i
+  end)
+  for k, i in ipairs(at) do steps[i] = chained[k].s end
+  return steps
+end
+
 local function enchantsAfterGear(steps)
   local out = {}
   local held = {} -- [inv] = enchant steps waiting for that slot's gear
@@ -29,8 +44,9 @@ local function enchantsAfterGear(steps)
   return out
 end
 
--- steps: optional list of { label, gain, id?, inv?, kind? } with gain in score points (id: the item,
--- if any; inv + kind "gear"/"enchant": which slot it is for, so an enchant follows its slot's item).
+-- steps: optional list of { label, gain, id?, inv?, kind?, chain? } with gain in score points (id: the
+-- item, if any; inv + kind "gear"/"enchant": which slot it is for, so an enchant follows its slot's
+-- item; chain: a tier 0.5 piece's quest step, so the pieces come in chain order).
 function Readiness.compute(parts, steps)
   local result, have, bis = {}, 0, 0
   for _, name in ipairs(PARTS) do
@@ -45,10 +61,10 @@ function Readiness.compute(parts, steps)
   result.pct = have / bis
 
   for i, s in ipairs(steps or {}) do
-    result.steps[i] = { label = s.label, gain = s.gain / bis, id = s.id, inv = s.inv, kind = s.kind }
+    result.steps[i] = { label = s.label, gain = s.gain / bis, id = s.id, inv = s.inv, kind = s.kind, chain = s.chain }
   end
   table.sort(result.steps, function(a, b) return a.gain > b.gain end)
-  result.steps = enchantsAfterGear(result.steps)
+  result.steps = enchantsAfterGear(chainOrder(result.steps))
   result.next = result.steps[1]
   return result
 end

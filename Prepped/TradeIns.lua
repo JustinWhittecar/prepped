@@ -7,6 +7,9 @@ ns.TradeIns = TradeIns
 
 local SAME = { INVTYPE_ROBE = "INVTYPE_CHEST" }
 
+-- The four quests' places in the chain: each opens after the one before.
+TradeIns.CHAIN = { ["An Earnest Proposition"] = 1, ["Just Compensation"] = 2, ["Anthion's Parting Words"] = 3, ["Saving the Best for Last"] = 4 }
+
 -- The quest that gives a class's tier 0.5 piece for an equip slot on a side, or nil.
 function TradeIns.forSlot(data, token, faction, loc)
   loc = SAME[loc] or loc
