@@ -11,7 +11,7 @@ local P = "|cff33ccffPrepped:|r "
 function Core.print(msg) print(P .. msg) end
 
 -- Saved settings --------------------------------------------------------------------------------
-local DB_DEFAULTS = { showTracker = true, scale = 1, buffsRaid = true, tooltip = true }
+local DB_DEFAULTS = { showTracker = true, scale = 1, buffBar = "instances", tooltip = true }
 local CHAR_DEFAULTS = { collapsed = true, raidHours = 3, trackConsumables = true }
 
 local function defaults(t, d)
@@ -22,7 +22,7 @@ end
 -- filters, consumables, raid night length, weights choice and spec choice. Slot picks, Custom weight
 -- values, positions and Forever harvests are kept.
 function Core.restoreDefaults()
-  for _, k in ipairs({ "showTracker", "scale", "buffsRaid", "tooltip", "lootAlert", "locked" }) do ns.db[k] = nil end
+  for _, k in ipairs({ "showTracker", "scale", "buffBar", "tooltip", "lootAlert", "locked" }) do ns.db[k] = nil end
   for _, k in ipairs({ "raidHours", "trackConsumables" }) do ns.cdb[k] = nil end
   ns.cdb.filters, ns.cdb.consumables, ns.cdb.weights, ns.cdb.groupSpec = { unconfirmed = true }, {}, {}, {}
   defaults(ns.db, DB_DEFAULTS)
@@ -35,13 +35,16 @@ local function initDB()
   PreppedDB = PreppedDB or {}
   PreppedCharDB = PreppedCharDB or {}
   ns.db, ns.cdb = PreppedDB, PreppedCharDB
+  -- The buff bar was an on/off "in raids" check; now never / instances / always.
+  if ns.db.buffsRaid == false and ns.db.buffBar == nil then ns.db.buffBar = "never" end
+  ns.db.buffsRaid = nil
   defaults(ns.db, DB_DEFAULTS)
   defaults(ns.cdb, CHAR_DEFAULTS)
   ns.cdb.groupSpec = ns.cdb.groupSpec or {} -- talent group -> SimGear spec, chosen or confirmed
   ns.cdb.filters = ns.cdb.filters or {}     -- off by default, but for unconfirmed consumables
   -- Consumables nobody has confirmed on Forever (Jujus) stay out until someone does: no option for it.
   ns.cdb.filters.unconfirmed = true
-  ns.db.buffsDungeon = nil -- the dungeon buff reminder is gone (raids only)
+  ns.db.buffsDungeon = nil -- the old dungeon check: 5-player dungeons now follow the buff bar setting
   ns.cdb.consumables = ns.cdb.consumables or {} -- [spec][slot] = item ID or "none"
   ns.cdb.weights = ns.cdb.weights or {} -- [spec] = "simgear" (nil), a preset id or "custom"
   ns.cdb.customWeights = ns.cdb.customWeights or {} -- [spec] = { [stat] = AP units }
@@ -696,8 +699,8 @@ end
 function Core.compute()
   local level = UnitLevel("player")
   local inInstance, kind = IsInInstance()
-  if Core.buffTest then inInstance, kind = true, "raid" end
   local inRaid = inInstance and kind == "raid"
+  local inDungeon = inInstance and kind == "party"
   local state = { level = level, collapsed = ns.cdb.collapsed, inRaid = inRaid, blockers = blockers() }
   local view = { state = state, instance = inInstance and kind or "none" }
   local spec, choices = Core.spec()
@@ -728,10 +731,13 @@ function Core.compute()
   view.consumableRows = plan.rows
   view.readiness, view.rows, view.set = r, rows, set
   view.slotData = { bis = bisFor(spec, set), auto = bisFor(spec, set, true), worn = scored, total = gear.bis + ench.bis + plan.bis }
-  if inRaid then
+  -- Buffs up right now: the Raid now score inside a raid, and the buff bar wherever it shows.
+  if inRaid or inDungeon or ns.db.buffBar == "always" then
     local raidPlan, raidShown = consumablePlan(spec, set, true)
-    local now = ns.Readiness.compute({ gear = gear, enchants = ench, consumables = { have = raidPlan.have, bis = raidPlan.bis } })
-    state.raidNow = now.pct
+    if inRaid then
+      local now = ns.Readiness.compute({ gear = gear, enchants = ench, consumables = { have = raidPlan.have, bis = raidPlan.bis } })
+      state.raidNow = now.pct
+    end
     view.buffSlots = raidShown
   end
   return view

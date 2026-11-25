@@ -35,7 +35,7 @@ Built for **World of Warcraft: Forever**, on top of [SimGear Forever](https://ww
 ### Consumables and raid buffs
 
 - A consumable plan sized to your raid night length. Buffs of the same stat don't stack on Forever, so you pick one per stat.
-- A **buff reminder bar** in raids: click a button to use what's missing. Hidden in combat.
+- A **buff reminder bar**: click a button to use what's missing. Show it in instances only (raids and 5-player dungeons), always, or never. Hidden in combat.
 - Don't bother with consumables? Switch them off and the score is gear and enchants only.
 
 ### And also
@@ -64,7 +64,7 @@ Prepped ships with a snapshot of SimGear's data, so it keeps working if SimGear'
 | `/prep spec <name>` or `auto` | Choose the spec for this talent group, or detect it |
 | `/prep pick <slot> <item link>` or `auto` | Set your own target for a slot, or go back to Prepped's BiS |
 | `/prep weights` | Show or set stat weights |
-| `/prep buffs test` | Preview the raid buff bar |
+| `/prep buffs never`, `instances` or `always` | When the buff reminder bar shows |
 | `/prep reset` | Put the tracker and buff bar back where they started |
 | `/prep debug` | Show what Prepped sees, for bug reports |
 

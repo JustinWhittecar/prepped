@@ -222,10 +222,10 @@ function UI.refreshBuffs(view)
   if not holder then return end
   if InCombatLockdown() then return end -- redrawn on PLAYER_REGEN_ENABLED
   local list = {}
-  if view and view.buffSlots and ns.db.buffsRaid and not UnitIsDeadOrGhost("player") then
+  if view and view.buffSlots and not UnitIsDeadOrGhost("player") then
     local stock = {}
     for _, s in ipairs(view.buffSlots) do if s.item then stock[s.item.id] = C_Item.GetItemCount(s.item.id) or 0 end end
-    list = ns.Buffs.missing({ instance = view.instance, slots = view.buffSlots, stock = stock, inCombat = false })
+    list = ns.Buffs.missing({ mode = ns.db.buffBar, instance = view.instance, slots = view.buffSlots, stock = stock, inCombat = false })
   end
   for _, b in ipairs(buffButtons) do b:Hide() end
   if #list == 0 then holder:Hide(); return end
@@ -644,10 +644,31 @@ local function buildOptions()
   hours:SetScript("OnEscapePressed", function(self) self:SetText(ns.cdb.raidHours); self:ClearFocus() end)
   add({ refresh = function() if not hours:HasFocus() then hours:SetText(ns.cdb.raidHours) end end })
   y = y - 28
-  add(check(consBody, "Buff reminder in raids", function() return ns.db.buffsRaid end,
-    function(on) ns.db.buffsRaid = on; Core.changed() end, y))
-  button(consBody, "Test", function() UI.buffTest() end, 260, y, 60)
-  y = y - 28
+  -- The buff bar: never, in instances only (raids and 5-player dungeons), or always (anywhere out of combat, which doubles as a preview).
+  local barLabel = text(consBody, 12)
+  barLabel:SetPoint("TOPLEFT", 18, y - 4)
+  barLabel:SetText("Buff reminder bar")
+  local okBar, barMenu = pcall(CreateFrame, "DropdownButton", nil, consBody, "WowStyle1DropdownTemplate")
+  if okBar and barMenu and barMenu.SetupMenu then
+    barMenu:SetPoint("TOPLEFT", 140, y)
+    barMenu:SetWidth(200)
+    add({ refresh = function()
+      barMenu:SetupMenu(function(_, root)
+        local function isCurrent(v) return ns.db.buffBar == v end
+        for _, m in ipairs(UI.BUFF_BAR_MODES) do root:CreateRadio(m[2], isCurrent, UI.setBuffBar, m[1]) end
+      end)
+    end })
+  else
+    local barBtn = add(button(consBody, "", function()
+      local ids = {}
+      for i, m in ipairs(UI.BUFF_BAR_MODES) do ids[i] = m[1] end
+      UI.setBuffBar(cycle(ids, ns.db.buffBar))
+    end, 140, y, 200))
+    barBtn.refresh = function()
+      for _, m in ipairs(UI.BUFF_BAR_MODES) do if m[1] == ns.db.buffBar then barBtn:SetText(m[2]) end end
+    end
+  end
+  y = y - 30
   local stackNote = text(consBody, 11, 0.6, 0.6, 0.6)
   stackNote:SetPoint("TOPLEFT", 18, y)
   stackNote:SetText("Buffs of one stat don't stack: one pick per stat.")
@@ -836,10 +857,11 @@ function UI.resetPositions()
   if not InCombatLockdown() then placeAt(holder, "buffPos", BUFF_DEFAULT) end
 end
 
-function UI.buffTest()
-  Core.buffTest = not Core.buffTest
-  Core.print("buff reminder test " .. (Core.buffTest and "on: showing it as if you were in a raid" or "off"))
-  Core.changed()
+UI.BUFF_BAR_MODES = { { "never", "Never show" }, { "instances", "In instances only" }, { "always", "Always show" } }
+
+function UI.setBuffBar(mode)
+  ns.db.buffBar = mode
+  Core.settingsChanged()
 end
 
 -- /pr, /prepped -------------------------------------------------------------------------------------------
@@ -918,8 +940,16 @@ local function slash(msg)
     UI.refreshTracker(Core.view)
   elseif msg == "options" or msg == "o" then
     UI.toggleOptions()
-  elseif msg == "buffs test" then
-    UI.buffTest()
+  elseif msg:match("^buffs") then
+    local mode = msg:match("^buffs%s+(%a+)$")
+    local known = false
+    for _, m in ipairs(UI.BUFF_BAR_MODES) do if m[1] == mode then known = true end end
+    if known then
+      UI.setBuffBar(mode)
+      for _, m in ipairs(UI.BUFF_BAR_MODES) do if m[1] == mode then Core.print("buff reminder bar: " .. m[2]:lower()) end end
+    else
+      Core.print("/prep buffs never | instances | always")
+    end
   elseif msg == "reset" then
     UI.resetPositions()
   elseif msg == "debug" then
@@ -944,7 +974,7 @@ local function slash(msg)
     Core.settingsChanged()
     Core.print("talent group " .. Core.talentGroup() .. ": " .. (value and (ns.Spec.NAME[value] or value) or "detected from talents"))
   else
-    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep weights [stat value] · /prep pick [slot item|auto] · /prep buffs test · /prep reset · /prep debug")
+    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep weights [stat value] · /prep pick [slot item|auto] · /prep buffs never|instances|always · /prep reset · /prep debug")
   end
 end
 

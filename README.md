@@ -30,7 +30,8 @@ loot data for them exists.
   consumable to-dos and no buff bar.
 - **Attunement blockers**: a `Blocked:` line for Onyxia while you lack the Drakefire Amulet, with
   progress through the quest chain for your faction.
-- **Buff reminders**: a bar of missing consumable buffs in raids, hidden in combat.
+- **Buff reminders**: a bar of missing consumable buffs, hidden in combat. Show it never, in instances
+  only (raids and 5-player dungeons, the default) or always.
 - **Stat weights per spec**: SimGear's simmed weights by default, a preset, or your own.
 - **Spec detection** from talents for each talent group, with a manual override.
 
@@ -59,7 +60,7 @@ of "SimGear live". Keep them installed; they cost nothing while SimGear works.
 | `/prep weights <stat> <value>` | Set one weight in your Custom set and switch to it (`/prep weights simgear` switches back) |
 | `/prep pick` | List your picks: slots where you chose your own target instead of Prepped's BiS |
 | `/prep pick <slot> <item link>` or `/prep pick <slot> auto` | Make an item your target for a slot (say a cheaper BoE), or go back to Prepped's BiS. Slots: head neck shoulder back chest wrist hands waist legs feet ring1 ring2 trinket1 trinket2 mainhand offhand ranged. Right-clicking a row in the slot panel does the same from a menu |
-| `/prep buffs test` | Show the buff reminder bar as if you were in a raid |
+| `/prep buffs never`, `instances` or `always` | When the buff reminder bar shows |
 | `/prep reset` | Put the tracker and buff bar back where they started |
 | `/prep debug` | Print what Prepped sees: data status, spec, the score parts, the BiS per slot |
 

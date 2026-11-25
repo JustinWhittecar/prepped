@@ -4,6 +4,13 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 
 ## [Unreleased]
 
+### Changed
+- The buff reminder bar has three settings: Never show, In instances only (the default) or Always
+  show (anywhere out of combat). They replace the "Buff reminder in raids" check and its Test button,
+  which also switched the tracker to the in-raid "Raid now" score. `/prep buffs never|instances|always`
+  replaces `/prep buffs test`.
+- The buff reminder bar works in 5-player dungeons again, without the flask.
+
 ## [0.2.0-beta] - 2026-11-25
 
 Fixes and polish from an in-game walkthrough, plus tier 0.5 hand-ins for every class.
