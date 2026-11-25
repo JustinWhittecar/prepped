@@ -4,6 +4,10 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 
 ## [Unreleased]
 
+## [0.2.0-beta] - 2026-11-25
+
+Fixes and polish from an in-game walkthrough, plus tier 0.5 hand-ins for every class.
+
 ### Added
 - Your picks: choose your own target for any gear slot (a cheaper BoE in place of an expensive one,
   say). Right-click a row in the slot panel for the best options, or `/prep pick <slot> <item link>`.
