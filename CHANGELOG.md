@@ -4,6 +4,10 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 
 ## [Unreleased]
 
+## [0.3.1-beta] - 2026-11-25
+
+Tooltips say where to get your BiS.
+
 ### Changed
 - Item tooltips name where to get any of your BiS targets, not only the items whose source Prepped
   supplies.
