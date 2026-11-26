@@ -28,9 +28,12 @@ end
 local KIND = { quest = "Quest", boss = "Boss", vendor = "Vendor", drop = "Drop", chest = "Chest" }
 
 -- One source as text: Prepped's own ({ text }) as is, SimGear's records the way SimGear words them.
-function SlotPanel.sourceText(src)
+-- tradable: the item can be traded (not bound on pickup), so a craft can also be bought.
+function SlotPanel.sourceText(src, tradable)
   if src.text then return src.text end
-  if src.type == "crafted" then return "Crafted: " .. tostring(src.name) end
+  if src.type == "crafted" then
+    return "Crafted: " .. tostring(src.name) .. (src.skill and (" " .. src.skill) or "") .. (tradable and " · or Auction House" or "")
+  end
   if src.type == "world" then return src.note or "World drop" end
   local text = (KIND[src.type] or tostring(src.type)) .. ": " .. (src.name or "dungeon mobs")
   local where = {}
@@ -45,11 +48,11 @@ function SlotPanel.sourceText(src)
 end
 
 -- An item's first two sources, then "+n more".
-function SlotPanel.sourcesText(item)
+function SlotPanel.sourcesText(item, tradable)
   local srcs = type(item.sources) == "table" and item.sources or {}
   if #srcs == 0 then return "Source unknown" end
   local parts = {}
-  for i = 1, math.min(2, #srcs) do parts[i] = SlotPanel.sourceText(srcs[i]) end
+  for i = 1, math.min(2, #srcs) do parts[i] = SlotPanel.sourceText(srcs[i], tradable) end
   if #srcs > 2 then parts[#parts + 1] = "+" .. (#srcs - 2) .. " more" end
   return table.concat(parts, "; ")
 end
@@ -72,7 +75,8 @@ local function pairTargets(a, c, bis, worn)
   return out
 end
 
-local function row(inv, target, wornPts, w, total, auto)
+-- bop: { [id] = true } for crafts bound on pickup, or nil when unknown.
+local function row(inv, target, wornPts, w, total, auto, bop)
   local r = { inv = inv, label = SlotPanel.LABEL[inv], gainText = "", pctText = "" }
   if w then r.wornID, r.wornName, r.unread = w.id, w.name, w.unread end
   if not target then
@@ -84,7 +88,7 @@ local function row(inv, target, wornPts, w, total, auto)
   r.pinned = target.locked or nil
   if r.pinned and auto and auto.id ~= target.id then r.autoName = auto.item.name or ("item " .. auto.id) end
   r.bisText = (r.isBis and (STAR .. " ") or "") .. (r.pinned and (PICK .. " ") or "") .. r.bisName
-  r.source = SlotPanel.sourcesText(target.item)
+  r.source = SlotPanel.sourcesText(target.item, bop ~= nil and not bop[target.id])
   if w and w.unread then
     r.pctText = NOT_SCORED
     return r
@@ -123,13 +127,13 @@ function SlotPanel.build(view)
     local r
     if inv == 16 and twoHand then
       -- Against a two-hander, both worn hands count (as the gear score counts them).
-      r = row(inv, targets[16], pts(16) + pts(17), worn[16], total, auto[16])
+      r = row(inv, targets[16], pts(16) + pts(17), worn[16], total, auto[16], sd.bop)
       if worn[17] and worn[17].unread then r.unread, r.pct, r.pctText, r.gain, r.gainText = true, nil, NOT_SCORED, nil, "" end
     elseif inv == 17 and twoHand then
       r = row(inv, nil, 0, worn[17], total)
       r.pctText, r.bisText = "", "Two-hander: see main hand"
     else
-      r = row(inv, targets[inv], pts(inv), worn[inv], total, auto[inv])
+      r = row(inv, targets[inv], pts(inv), worn[inv], total, auto[inv], sd.bop)
     end
     out.rows[#out.rows + 1] = r
   end

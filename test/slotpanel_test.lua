@@ -91,6 +91,18 @@ T.eq("2h off no gain", rows[17].gainText, "")
 T.eq("quest src", SP.sourceText({ type = "quest", name = "Foo", zone = "Bar", level = 58 }), "Quest: Foo (Bar, Lv58)")
 T.eq("drop chance", SP.sourceText({ type = "drop", name = "Mob", zone = "Strat", chance = 0.05 }), "Drop: Mob (Strat) 5.0%")
 T.eq("crafted", SP.sourceText({ type = "crafted", name = "Leatherworking" }), "Crafted: Leatherworking")
+-- A craft names the skill it takes; one that can be traded can also be bought.
+local cloak = { type = "crafted", name = "Tailoring", skill = 280 }
+T.eq("crafted with skill", SP.sourceText(cloak), "Crafted: Tailoring 280")
+T.eq("tradable craft", SP.sourceText(cloak, true), "Crafted: Tailoring 280 · or Auction House")
+T.eq("tradable only for crafts", SP.sourceText({ type = "quest", name = "Foo" }, true), "Quest: Foo")
+T.eq("sources text passes it on", SP.sourcesText({ sources = { cloak } }, true), "Crafted: Tailoring 280 · or Auction House")
+-- The slot panel: a craft not bound on pickup (view.slotData.bop) says Auction House; a bound one doesn't.
+local craftBis = { [15] = b(18413, "Cloak of Warding", 10, { cloak }) }
+T.eq("panel: tradable craft", byInv(SP.build({ state = {}, slotData = { bis = craftBis, worn = {}, total = 100, bop = {} } }).rows)[15].source,
+  "Crafted: Tailoring 280 · or Auction House")
+T.eq("panel: bind-on-pickup craft", byInv(SP.build({ state = {}, slotData = { bis = craftBis, worn = {}, total = 100, bop = { [18413] = true } } }).rows)[15].source,
+  "Crafted: Tailoring 280")
 T.eq("world", SP.sourceText({ type = "world", note = "World drop from level 50-60 NPCs" }), "World drop from level 50-60 NPCs")
 T.eq("prepped text", SP.sourceText({ kind = "vendor", text = "Pix, Booty Bay · 100 Reals" }), "Pix, Booty Bay · 100 Reals")
 T.eq("many", SP.sourcesText({ sources = { { text = "A" }, { text = "B" }, { text = "C" } } }), "A; B; +1 more")

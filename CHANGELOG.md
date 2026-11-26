@@ -4,6 +4,12 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 
 ## [Unreleased]
 
+### Changed
+- Item tooltips name where to get any of your BiS targets, not only the items whose source Prepped
+  supplies.
+- A crafted item's source names the skill it takes and, when it can be traded, says it can be bought
+  instead: "Crafted: Tailoring 280 · or Auction House".
+
 ## [0.3.0-beta] - 2026-11-25
 
 A three-way buff reminder bar, back in 5-player dungeons, and tier 0.5 to-dos in quest-chain order.

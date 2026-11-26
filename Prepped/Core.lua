@@ -731,7 +731,7 @@ function Core.compute()
   state.prep, state.todos, state.consumables = r.pct, r.steps, shown
   view.consumableRows = plan.rows
   view.readiness, view.rows, view.set = r, rows, set
-  view.slotData = { bis = bisFor(spec, set), auto = bisFor(spec, set, true), worn = scored, total = gear.bis + ench.bis + plan.bis }
+  view.slotData = { bis = bisFor(spec, set), auto = bisFor(spec, set, true), worn = scored, total = gear.bis + ench.bis + plan.bis, bop = d.profTagged }
   -- Buffs up right now: the Raid now score inside a raid, and the buff bar wherever it shows.
   if inRaid or inDungeon or ns.db.buffBar == "always" then
     local raidPlan, raidShown = consumablePlan(spec, set, true)

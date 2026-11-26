@@ -306,7 +306,7 @@ if not other then
   ns.cdb.groupSpec[2] = other
 end
 print("tooltip lines (active " .. tostring(v.spec) .. ", other group " .. tostring(other) .. "):")
-for _, id in ipairs({ 226792, 13340, 15062, 13098, 11815, 999999, 13452, 16719, 16720, 272408 }) do
+for _, id in ipairs({ 226792, 13340, 15062, 13098, 11815, 999999, 13452, 16719, 16720, 272408, 18413 }) do
   shiftDown = false
   local plain = tipFor(id)
   shiftDown = true

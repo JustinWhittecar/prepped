@@ -114,13 +114,19 @@ function IT.handInLine(id)
   return q and ns.TradeIns.tooltipLine(q, targets) or nil
 end
 
--- Where to get an item whose source Prepped supplies (Pix Xizzix's Undermine stock, tier 0.5 quests,
--- reputation vendors): SimGear has none for these, so no other tooltip says. nil for the rest.
+-- Where to get an item: one of your BiS targets (this spec's), or one whose source Prepped supplies
+-- (Pix Xizzix's Undermine stock, tier 0.5 quests, reputation vendors), which no other tooltip names.
+-- nil for the rest.
 function IT.sourceLine(id)
   local d = Core.data()
   local item = d and d.items[id]
-  if not (item and item.addedSource) then return nil end
-  return "Source: " .. ns.SlotPanel.sourcesText(item)
+  if not item then return nil end
+  local target = item.addedSource
+  local spec = Core.view and Core.view.spec
+  local ctx = not target and spec and context(spec)
+  for _, bisID in pairs(ctx and ctx.bisIDs or {}) do if bisID == id then target = true end end
+  if not target then return nil end
+  return "Source: " .. ns.SlotPanel.sourcesText(item, d.profTagged ~= nil and not d.profTagged[id])
 end
 
 local function secret(v) return issecretvalue and issecretvalue(v) end
