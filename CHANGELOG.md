@@ -4,6 +4,28 @@ All notable changes to Prepped. Versions follow the release tags (`v0.1.0-beta` 
 
 ## [Unreleased]
 
+## [0.4.0-beta] - 2026-11-26
+
+Equip best, upgrade arrows, and the right idol for each druid form.
+
+### Added
+- Equip best: a button under the slot panel on the character sheet (or `/prep equip`) puts on the
+  best gear in your bags for the spec Prepped is scoring, set bonuses included. A druid can switch
+  between cat and bear gear in one click. Bind-on-equip items stay in your bags, so nothing gets
+  bound by accident (the chat line names them). Out of combat only.
+- Upgrade arrows: a green arrow on an item's Prepped tooltip line when it would raise your readiness
+  (each spec's line with Shift held), and on the item's icon in your bags. Baganator shows it as a
+  corner widget (and its Upgrades category can use Prepped); the game's own bags get it too.
+
+### Fixed
+- Druid idols: bear's BiS idol was the Idol of Ferocity, which does nothing in Bear Form. SimGear gives
+  idols no value, so every idol scored 0 and the first one won for both forms. The Idol of Ferocity
+  now counts for cat and the Idol of Brutality for bear, and Restoration gets the Idol of Synthesis
+  (Pix Xizzix, 50 Reals) ahead of the Idol of Rejuvenation. These are Prepped's own estimates; no
+  sim prices idols yet.
+- The Idol of Swiftness and Idol of the Ursine Twins are never Pre-raid targets: their Enchanting
+  recipes need Malleable Essence of Nature, which only comes from raid gear.
+
 ## [0.3.1-beta] - 2026-11-25
 
 Tooltips say where to get your BiS.
