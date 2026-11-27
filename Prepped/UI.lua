@@ -961,6 +961,8 @@ local function slash(msg)
   elseif msg:match("^harvest") then -- maintainers only, so not in the help line (see Core.harvest)
     local a, b = msg:match("^harvest%s+(%d+)%s+(%d+)")
     Core.harvest(tonumber(a), tonumber(b))
+  elseif msg == "equip" then
+    ns.Equip.best()
   elseif msg:match("^pick") then
     UI.pick(msg:match("^pick%s*(.*)$"))
   elseif msg:match("^weights") then
@@ -974,7 +976,7 @@ local function slash(msg)
     Core.settingsChanged()
     Core.print("talent group " .. Core.talentGroup() .. ": " .. (value and (ns.Spec.NAME[value] or value) or "detected from talents"))
   else
-    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep weights [stat value] · /prep pick [slot item|auto] · /prep buffs never|instances|always · /prep reset · /prep debug")
+    Core.print("/prep (show or hide the tracker) · /prep options · /prep spec <name>|auto · /prep weights [stat value] · /prep pick [slot item|auto] · /prep equip · /prep buffs never|instances|always · /prep reset · /prep debug")
   end
 end
 

@@ -60,6 +60,7 @@ of "SimGear live". Keep them installed; they cost nothing while SimGear works.
 | `/prep weights <stat> <value>` | Set one weight in your Custom set and switch to it (`/prep weights simgear` switches back) |
 | `/prep pick` | List your picks: slots where you chose your own target instead of Prepped's BiS |
 | `/prep pick <slot> <item link>` or `/prep pick <slot> auto` | Make an item your target for a slot (say a cheaper BoE), or go back to Prepped's BiS. Slots: head neck shoulder back chest wrist hands waist legs feet ring1 ring2 trinket1 trinket2 mainhand offhand ranged. Right-clicking a row in the slot panel does the same from a menu |
+| `/prep equip` | Put on the best gear in your bags for the spec Prepped is scoring (the Equip best button under the slot panel does the same). Bind-on-equip items stay in your bags; out of combat only |
 | `/prep buffs never`, `instances` or `always` | When the buff reminder bar shows |
 | `/prep reset` | Put the tracker and buff bar back where they started |
 | `/prep debug` | Print what Prepped sees: data status, spec, the score parts, the BiS per slot |

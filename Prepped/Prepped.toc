@@ -5,7 +5,7 @@
 ## Version: @project-version@
 ## SavedVariables: PreppedDB
 ## SavedVariablesPerCharacter: PreppedCharDB
-## OptionalDeps: SimGearForever
+## OptionalDeps: SimGearForever, Baganator
 ## IconTexture: Interface\Icons\INV_Potion_93
 ## AddonCompartmentFunc: Prepped_OnCompartmentClick
 ## AddonCompartmentFuncOnEnter: Prepped_OnCompartmentEnter
@@ -44,6 +44,7 @@ Weights.lua
 Readiness.lua
 Consumables.lua
 Bis.lua
+Outfit.lua
 Attune.lua
 Tracker.lua
 SlotPanel.lua
@@ -53,6 +54,8 @@ Loot.lua
 Sync.lua
 Core.lua
 ItemTooltip.lua
+BagArrows.lua
 Watch.lua
+Equip.lua
 UI.lua
 SlotPanelUI.lua

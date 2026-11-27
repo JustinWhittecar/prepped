@@ -70,6 +70,10 @@ local function showDetail()
     fs:Show()
     y = y - math.max(ROW_H, (fs:GetStringHeight() or 0) + 4)
   end
+  panel.equip:ClearAllPoints()
+  panel.equip:SetPoint("TOPLEFT", PAD, y - 4)
+  panel.equip:Show()
+  y = y - 4 - panel.equip:GetHeight()
   panel:SetHeight(-y + PAD)
 end
 
@@ -192,6 +196,24 @@ local function build()
   end
   panel.detailTop = top - #SP.ORDER * ROW_H - 6
 
+  -- Equip best: the best outfit from your bags for the spec shown (Equip.lua).
+  local equip = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+  equip:SetSize(110, 22)
+  equip:SetText("Equip best")
+  equip:SetScript("OnClick", function() ns.Equip.best() end)
+  equip:SetScript("OnEnter", function(self)
+    local spec = Core.view and Core.view.spec
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Equip best")
+    GameTooltip:AddLine("Puts on the best gear in your bags for " .. (spec and (ns.Spec.NAME[spec] or spec) or "this spec")
+      .. ", scored as the rest of this panel is. Bind-on-equip items stay in your bags. Out of combat only. Also /prep equip.",
+      1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  equip:SetScript("OnLeave", GameTooltip_Hide)
+  equip:Hide()
+  panel.equip = equip
+
   panel.detail = {}
   for i = 1, DETAIL_LINES do
     local fs = text(panel, 12)
@@ -263,6 +285,7 @@ function SlotPanelUI.refresh(view)
   end
   if not has then
     for _, fs in ipairs(panel.detail) do fs:Hide() end
+    panel.equip:Hide()
     panel:SetHeight(PAD + 42 + math.max(ROW_H, (panel.note:GetStringHeight() or 0)) + PAD)
     return
   end

@@ -446,6 +446,94 @@ function Core.bisReport(spec, ids)
   return out
 end
 
+-- Equip best ------------------------------------------------------------------------------------------
+-- An item's key in the outfit: its ID, or ID and suffix for a random-suffix roll (two rolls differ).
+local function outfitKey(id, link)
+  local suffix = ns.Stats.linkSuffix(link)
+  return suffix and (id .. ":" .. suffix) or id
+end
+
+-- A bag item as the outfit scores it: SimGear's record, or the game's stat reader for a random-suffix
+-- roll of an item SimGear has. Only items in the spec's data count: that keeps out gear the class
+-- can't wear and gear Prepped can't score.
+local function bagItem(link, id, items)
+  local item = items[id]
+  if not item then return nil end
+  if not ns.Stats.linkSuffix(link) then return item end
+  local raw = GetItemStatsFn and GetItemStatsFn(link)
+  if not raw then return nil end
+  local _, _, _, loc = C_Item.GetItemInfoInstant(link)
+  return { name = C_Item.GetItemNameByID(id), slot = loc, req = item.req,
+    stats = ns.Stats.addWeaponDps((ns.Stats.normalize(raw)), loc) }
+end
+
+local BIND_ON_EQUIP = 2
+local function wouldBind(bag, slot, link)
+  local bindType = select(14, C_Item.GetItemInfo(link))
+  if bindType ~= BIND_ON_EQUIP then return false end
+  local loc = ItemLocation and ItemLocation:CreateFromBagAndSlot(bag, slot)
+  return not (loc and C_Item.IsBound and C_Item.IsBound(loc))
+end
+
+-- The best outfit from your bags and what you wear, for the spec: { moves = Outfit.plan's moves, each
+-- with its link and name, skipped = names of better bind-on-equip items left in the bags (equipping
+-- binds them) }. nil when the spec can't be scored. Worn items Prepped can't read stay where they are.
+function Core.bestOwned(spec)
+  local d = Core.data()
+  local set = d and spec and weightSet(spec)
+  if not set then return nil end
+  local items, pool, wornKeys, prefer, locked, info = itemsFor(spec), {}, {}, {}, {}, {}
+  for inv = 1, 18 do
+    local w = wornItem(inv, d.items)
+    if w then
+      local key = outfitKey(w.id, w.link)
+      wornKeys[inv], prefer[key] = key, true
+      info[key] = { link = w.link, name = C_Item.GetItemNameByID(w.id) }
+      if w.unread then
+        local _, _, _, loc = C_Item.GetItemInfoInstant(w.link)
+        pool[key], locked[inv] = { slot = loc, stats = {} }, key
+      else
+        pool[key] = w.item
+      end
+    end
+  end
+  local boe = {}
+  for bag = 0, (NUM_BAG_SLOTS or 4) do
+    for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
+      local link = C_Container.GetContainerItemLink(bag, slot)
+      local id = link and C_Container.GetContainerItemID(bag, slot)
+      local item = id and bagItem(link, id, items)
+      if item then
+        local key = outfitKey(id, link)
+        if not pool[key] then
+          pool[key], info[key] = item, { link = link, name = item.name or C_Item.GetItemNameByID(id) }
+          if wouldBind(bag, slot, link) then boe[key] = true end
+        end
+      end
+    end
+  end
+  local opts = bisOpts(spec, set)
+  opts.items, opts.owned, opts.prefer, opts.locked = pool, true, prefer, locked
+  -- A bind-on-equip item that would make the outfit stays in the bags (you may mean to sell it):
+  -- pick again without it, and say so.
+  local skipped, best = {}, nil
+  for _ = 1, 20 do
+    best = ns.Bis.pick(opts)
+    local again = false
+    for inv = 1, 18 do
+      local b = best[inv]
+      if b and boe[b.id] then
+        skipped[#skipped + 1] = info[b.id].name or tostring(b.id)
+        pool[b.id], boe[b.id], again = nil, nil, true
+      end
+    end
+    if not again then break end
+  end
+  local moves = ns.Outfit.plan(best, wornKeys)
+  for _, m in ipairs(moves) do m.link, m.name = info[m.key].link, info[m.key].name end
+  return { moves = moves, skipped = skipped }
+end
+
 local SINGLE = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 15, 18 }
 local PAIRS = { { 11, 12 }, { 13, 14 } }
 Core.SLOT_NAME = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [5] = "Chest", [6] = "Waist", [7] = "Legs", [8] = "Feet",

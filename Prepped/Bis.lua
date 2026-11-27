@@ -40,12 +40,16 @@ local function best(list, notID)
   for _, c in ipairs(list) do if c.id ~= notID then return c end end
 end
 
-local function byPoints(a, b) return a.points > b.points end
+-- Best first; on a tie, an item marked tie (one you wear, for Outfit) comes first.
+local function byPoints(a, b)
+  if a.points ~= b.points then return a.points > b.points end
+  return (a.tie or 0) > (b.tie or 0)
+end
 
 -- Slots 16 and 17: the best two-hander against the best main hand + off hand pair.
 -- A one-hander goes in the off hand only for a dual wielder, valued as SimGear values an off hand.
 local function offHandOf(c, weightSet)
-  return { id = c.id, item = c.item, points = value(c.id, ns.Score.inOffHand(c.item), weightSet), locked = c.locked }
+  return { id = c.id, item = c.item, points = value(c.id, ns.Score.inOffHand(c.item), weightSet), locked = c.locked, tie = c.tie }
 end
 
 local function pickWeapons(bis, cands, weightSet, dualWield, pin16, pin17)
@@ -69,7 +73,7 @@ local function pickWeapons(bis, cands, weightSet, dualWield, pin16, pin17)
   for _, c in ipairs(cands) do
     local loc = c.item.slot
     if loc == "INVTYPE_2HWEAPON" then
-      if not twoHand or c.points > twoHand.points then twoHand = c end
+      if not twoHand or byPoints(c, twoHand) then twoHand = c end
     end
     if MAIN_HAND[loc] then mains[#mains + 1] = c end
     if OFF_HAND[loc] or (dualWield and loc == "INVTYPE_WEAPON") then
@@ -85,7 +89,8 @@ local function pickWeapons(bis, cands, weightSet, dualWield, pin16, pin17)
     local total = m.points + (o and o.points or 0)
     if total > pair then main, off, pair = m, o, total end
   end
-  if twoHand and (not main or twoHand.points >= pair) then
+  local mainTie = main and math.max(main.tie or 0, off and off.tie or 0) or 0
+  if twoHand and (not main or twoHand.points > pair or (twoHand.points == pair and (twoHand.tie or 0) >= mainTie)) then
     bis[16] = twoHand
   else
     bis[16], bis[17] = main, off
@@ -162,14 +167,15 @@ local function applySets(bis, ranked, sets)
 end
 
 -- Candidates ranked per group of slots (chest and robe share slot 5, so grouped by the slot list),
--- and the weapons, from the items the filters allow.
+-- and the weapons, from the items the filters allow. opts.owned: the items are ones you have, so
+-- no source is needed and no filter applies.
 local function rank(opts)
   local ranked, weapons = {}, {}
   for id, item in pairs(opts.items) do
     -- No known source: a test item, unreleased raid loot or a Forever item not yet found in game.
-    local known = type(item.sources) == "table" and #item.sources > 0
-    if known and (item.req or 0) <= LEVEL and not excluded(id, item, opts.filters, opts.tagged) then
-      local c = { id = id, item = item, points = value(id, item, opts.weightSet) }
+    local known = opts.owned or (type(item.sources) == "table" and #item.sources > 0)
+    if known and (item.req or 0) <= LEVEL and (opts.owned or not excluded(id, item, opts.filters, opts.tagged)) then
+      local c = { id = id, item = item, points = value(id, item, opts.weightSet), tie = opts.prefer and opts.prefer[id] and 1 or nil }
       local slots = SLOTS[item.slot]
       if slots then
         local list = ranked[slots[1]] or { slots = slots }
@@ -230,7 +236,8 @@ end
 
 -- opts: items ({[id] = SimGear item}), weightSet, filters ({pvp, reputation, profession, darkmoon}), tagged,
 -- dualWield (the class can use a one-hander in the off hand), unique ({[id] = group}: one per group),
--- locked ({[inv] = id}: your picks, which take the slot), sets ({[setID] = {items = {[id] = true},
+-- locked ({[inv] = id}: your picks, which take the slot), owned (the items are what you have: no source
+-- or filter checks), prefer ({[id] = true}: wins a tie, e.g. what you wear), sets ({[setID] = {items = {[id] = true},
 -- bonuses = {{count, points}}}}: bonuses in the spec's points).
 -- Returns {[inventory slot] = { id, item, points }}, plus sets = {[setID] = {count, points}}.
 function Bis.pick(opts)

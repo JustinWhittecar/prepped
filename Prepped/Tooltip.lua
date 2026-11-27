@@ -97,16 +97,24 @@ local function pctText(x)
   return string.format("%.1f%%", x * 100)
 end
 
+-- Whether an item is an upgrade on what you wear: a readiness gain big enough for the line to show it.
+-- The tooltip's arrow and the bag icons' arrow both use this.
+local SHOWN_GAIN = 0.0005
+function Tooltip.isUpgrade(r)
+  return type(r) == "table" and not r.worn and r.gain ~= nil and r.gain >= SHOWN_GAIN
+end
+
 -- The tooltip text. label: a spec's short name, for the other spec's line; nil for the active one.
--- r: Tooltip.evaluate's result, or nil for an item Prepped can't score.
-function Tooltip.line(label, r)
+-- r: Tooltip.evaluate's result, or nil for an item Prepped can't score. arrow: put before an upgrade's line.
+function Tooltip.line(label, r, arrow)
   local who = label and (" (" .. label .. ")") or ""
   if not r or not r.pct then return "Not scored by Prepped" .. who end
   local s = "Prepped" .. who .. ": " .. string.format("%d%%", math.floor(math.max(r.pct, 0) * 100 + 0.5)) .. " of BiS"
   if r.worn then
     s = s .. " · worn"
-  elseif r.gain and r.gain >= 0.0005 then
+  elseif Tooltip.isUpgrade(r) then
     s = s .. " · +" .. pctText(r.gain) .. " readiness"
+    if arrow then s = arrow .. s end
   end
   return s
 end

@@ -112,4 +112,13 @@ T.eq("never below 0%", TT.line(nil, { pct = -0.2 }), "Prepped: 0% of BiS")
 T.eq("unscored", TT.line(nil, nil), "Not scored by Prepped")
 T.eq("unscored for a spec", TT.line("Bear", nil), "Not scored by Prepped (Bear)")
 
+-- The upgrade arrow: on a line with a readiness gain, and the same test marks bag icons.
+T.eq("upgrade arrow on a gain", TT.line(nil, { pct = 0.874, gain = 0.04 }, "^ "), "^ Prepped: 87% of BiS · +4% readiness")
+T.eq("no arrow without a gain", TT.line(nil, { pct = 0.4 }, "^ "), "Prepped: 40% of BiS")
+T.eq("no arrow under the shown gain", TT.line(nil, { pct = 0.5, gain = 0.0004 }, "^ "), "Prepped: 50% of BiS")
+T.eq("no arrow when worn", TT.line(nil, { pct = 1, worn = true, gain = 0.1 }, "^ "), "Prepped: 100% of BiS · worn")
+T.eq("isUpgrade", TT.isUpgrade({ pct = 0.5, gain = 0.01 }), true)
+T.eq("isUpgrade: tiny gain", TT.isUpgrade({ pct = 0.5, gain = 0.0004 }), false)
+T.eq("isUpgrade: unscored", TT.isUpgrade(nil), false)
+
 T.done()

@@ -81,19 +81,45 @@ function IT.evaluate(spec, id, link, lines)
   return TT.evaluate({ id = id, bisIDs = ctx.bisIDs, places = places, bis = ctx.bis, worn = ctx.worn, wornTwoHand = ctx.wornTwoHand, total = ctx.total }) or SKIP
 end
 
--- The line for a spec, or nil for none. label: nil for the active spec.
-function IT.lineFor(spec, id, link, label, lines)
+-- An item's result for a spec, kept until the next recompute. Bag icons ask without the tooltip's
+-- lines (no class restriction to read), so their results are kept apart.
+local function result(spec, id, link, lines)
   local bySpec = results[spec] or {}
   results[spec] = bySpec
   local key = (link and ns.Stats.linkSuffix(link)) and link or id
+  if not lines then key = "bag:" .. key end
   if bySpec[key] == nil then
     local ok, r = pcall(IT.evaluate, spec, id, link, lines)
     if not ok then Core.lastError = r; r = SKIP end
     bySpec[key] = r
   end
-  local r = bySpec[key]
+  return bySpec[key]
+end
+
+-- The green upgrade arrow: the game's bag-upgrade atlas, or the pet battle "strong" badge where a
+-- client lacks it. Size in pixels.
+function IT.arrow(size)
+  size = size or 14
+  if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("bags-greenarrow") then
+    return "|A:bags-greenarrow:" .. size .. ":" .. size .. "|a"
+  end
+  return "|TInterface\\PetBattles\\BattleBar-AbilityBadge-Strong:" .. size .. ":" .. size .. "|t"
+end
+
+-- The line for a spec, or nil for none (an upgrade's line starts with the arrow). label: nil for the active spec.
+function IT.lineFor(spec, id, link, label, lines)
+  local r = result(spec, id, link, lines or {})
   if r == SKIP then return nil end
-  return TT.line(label, r ~= UNSCORED and r or nil), r == UNSCORED
+  return TT.line(label, r ~= UNSCORED and r or nil, IT.arrow() .. " "), r == UNSCORED
+end
+
+-- Whether an item (by link) is an upgrade on what you wear for the spec Prepped is scoring.
+function IT.isUpgrade(link)
+  local spec = Core.view and Core.view.spec
+  if not (spec and link) then return false end
+  local id = C_Item.GetItemInfoInstant(link)
+  if not id then return false end
+  return TT.isUpgrade(result(spec, id, link, nil))
 end
 
 -- The other talent group's spec, when the player has set one and it differs.

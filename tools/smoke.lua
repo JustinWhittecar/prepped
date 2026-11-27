@@ -100,6 +100,14 @@ if svCons then bags = {} for _, c in pairs(svCons) do for id, n in pairs(c) do b
 for id, n in (os.getenv("PREPPED_BAGS") or ""):gmatch("(%d+)=(%d+)") do bags[tonumber(id)] = tonumber(n) end
 _G.C_Item = {
   GetItemCount = function(id) return bags[id] or 0 end,
+  -- PREPPED_BAG_BOE="13340": bag items still bind-on-equip, unbound.
+  GetItemInfo = function(link)
+    local id = tostring(link):match("item:(%d+)")
+    if id and (","..(os.getenv("PREPPED_BAG_BOE") or "")..","):find(","..id..",", 1, true) then
+      return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 2
+    end
+  end,
+  IsBound = function() return false end,
   GetItemInfoInstant = function(link)
     local id = tonumber(tostring(link):match("item:(%d+)")) or tonumber(link)
     -- Prepped's merged items (Forever's too) once loaded, then SimGear's, then the tooltip check's extras.
@@ -113,6 +121,22 @@ _G.C_Item = {
   GetItemStats = function(link) return C_Item.statsFor and C_Item.statsFor(link) or {} end,
   GetItemIconByID = function() return 134400 end,
 }
+-- PREPPED_BAG_ITEMS="16983,22397": gear in bag 0 (soulbound), for the equip best check. Equipping swaps.
+local bagSlots = {}
+for id in (os.getenv("PREPPED_BAG_ITEMS") or ""):gmatch("%d+") do bagSlots[#bagSlots + 1] = tonumber(id) end
+_G.NUM_BAG_SLOTS = 0
+_G.C_Container = {
+  GetContainerNumSlots = function(bag) return bag == 0 and #bagSlots + 1 or 0 end,
+  GetContainerItemID = function(bag, slot) return bag == 0 and bagSlots[slot] or nil end,
+  GetContainerItemLink = function(bag, slot) local id = bag == 0 and bagSlots[slot]; return id and ("item:" .. id .. "::::::::60") end,
+}
+_G.ItemLocation = { CreateFromBagAndSlot = function() return {} end }
+_G.EquipItemByName = function(link, inv)
+  local id = tonumber(link:match("item:(%d+)"))
+  for i, b in ipairs(bagSlots) do if b == id then bagSlots[i] = worn[inv]; break end end
+  worn[inv] = id
+  print(("equip: %s -> slot %d"):format(C_Item.GetItemNameByID(id) or id, inv))
+end
 _G.IsEquippedItem = function(id) for _, w in pairs(worn) do if w == id then return true end end return false end
 local done = { [4182] = true, [4183] = true }
 _G.C_QuestLog = { IsQuestFlaggedCompleted = function(q) return done[q] == true end }
@@ -393,6 +417,12 @@ ns.db.lootAlert = false
 
 -- Optional 5th argument: Raid Ready's Data.lua. Prints each slot's Prepped BiS beside Raid Ready's
 -- target for the same spec (cat or bear), both scored in SimGear's units for that spec.
+-- Equip best, from the bag items given.
+if #bagSlots > 0 then
+  ns.Equip.best()
+  for _ = 1, 40 do runTimers() end
+end
+
 if arg[5] then
   local RR = {}
   local chunk = assert(loadfile(arg[5]))

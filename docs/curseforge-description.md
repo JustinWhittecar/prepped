@@ -63,6 +63,7 @@ Prepped ships with a snapshot of SimGear's data, so it keeps working if SimGear'
 | `/prep options` | Open the options |
 | `/prep spec <name>` or `auto` | Choose the spec for this talent group, or detect it |
 | `/prep pick <slot> <item link>` or `auto` | Set your own target for a slot, or go back to Prepped's BiS |
+| `/prep equip` | Put on the best gear in your bags for your spec (or click Equip best on the character sheet) |
 | `/prep weights` | Show or set stat weights |
 | `/prep buffs never`, `instances` or `always` | When the buff reminder bar shows |
 | `/prep reset` | Put the tracker and buff bar back where they started |
