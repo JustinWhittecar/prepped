@@ -1,6 +1,7 @@
 -- Hand-kept: items Prepped never picks as a Pre-raid target, whatever the filters.
--- [item] = why. Two kinds:
+-- [item] = why. Three kinds:
 --   raid kill: a quest reward that needs a raid drop or a raid boss's head.
+--   raid reagent: a craft that needs a material only raids give.
 --   not on Forever: AQ-war Silithus quests that SimGear found only in cMaNGOS, not in Forever's
 --   own client (SimGear source origin "cmangos", not "client"). Forever has no Ahn'Qiraj.
 -- Seeded 2026-11-23 from cMaNGOS classic-db ec4f596146 and SimGear 0.16.0, then reviewed by hand:
@@ -26,6 +27,8 @@ ns.Excluded = {
   [22378] = "AQ20: The Perfect Poison", -- Ravenholdt Slicer
   [22379] = "AQ20: The Perfect Poison", -- Shivsprocket's Shiv
   [22380] = "AQ20: The Perfect Poison", -- Simone's Cultivating Hammer
+  [279250] = "raid reagent: Malleable Essence of Nature (Hyjal Summit, Barrow Deeps)", -- Idol of Swiftness
+  [279251] = "raid reagent: Malleable Essence of Nature (Hyjal Summit, Barrow Deeps)", -- Idol of the Ursine Twins
   [22589] = "Naxxramas: Atiesh", -- Atiesh, Greatstaff of the Guardian
   [22630] = "Naxxramas: Atiesh", -- Atiesh, Greatstaff of the Guardian
   [22631] = "Naxxramas: Atiesh", -- Atiesh, Greatstaff of the Guardian

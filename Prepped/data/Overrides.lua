@@ -16,6 +16,17 @@ ns.EffectOverrides = {
   [13965] = { stats = { MeleeCrit = 1.33 } },
   -- Vigilance Charm: on-use +20% dodge for 20 s or 3 dodges, every 6 min, counted as ~0.5% dodge.
   [18370] = { stats = { Dodge = 0.5 } },
+  -- The feral idols. SimGear lists no stats or sims for idols, so both scored 0 and the first in its
+  -- list won for both forms. No sim prices them: these are Prepped's estimates, sized as cheaper
+  -- core abilities (Claw and Rake -2 energy; Maul and Swipe -2 rage), each only in its own form.
+  [22397] = { ap = { FERAL_CAT = 20 } }, -- Idol of Ferocity
+  [23198] = { ap = { FERAL_BEAR = 30 } }, -- Idol of Brutality
+  -- Restoration's idols, as healing power: Prepped's estimates, assuming a 1,000-point Regrowth and
+  -- Swiftmend and about 0.4 healing per second per point of healing power. Idol of Synthesis (Pix
+  -- Xizzix): ~2 heal-over-time effects take ~2 s off each Swiftmend's cooldown, ~10 more healing
+  -- per second. Idol of Rejuvenation (Mor Grayhoof): 5% more Regrowth every ~10 s, ~5.
+  [22398] = { specStats = { RESTORATION = { HealingPower = 12 } } }, -- Idol of Rejuvenation
+  [272429] = { specStats = { RESTORATION = { HealingPower = 25 } } }, -- Idol of Synthesis
 }
 
 -- Forever's tier 0.5 sets are the classic sets under new IDs, keeping the classic 2-piece (+8 all

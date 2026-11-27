@@ -5,13 +5,15 @@ local Effects = {}
 ns.Effects = Effects
 
 -- One override's points for a spec. entry: ap ({[spec] = attack power equivalent}), stats (counted
--- for every spec, e.g. an on-use averaged), drop ({[stat] = true}: stats the item lists that don't
+-- for every spec, e.g. an on-use averaged), specStats ({[spec] = stats}: one spec only), drop ({[stat] = true}: stats the item lists that don't
 -- count). ws: the spec's SimGear weights; itemStats: the item's own stats; score: stats -> points.
 function Effects.value(entry, spec, ws, itemStats, score)
   local v = 0
   local ap = entry.ap and entry.ap[spec]
   if ap then v = v + ap * (ws.AttackPower or 0) end
   if entry.stats then v = v + score(entry.stats) end
+  local own = entry.specStats and entry.specStats[spec]
+  if own then v = v + score(own) end
   if entry.drop then
     local dropped = {}
     for k in pairs(entry.drop) do dropped[k] = itemStats and itemStats[k] end
